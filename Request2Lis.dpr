@@ -73,8 +73,10 @@ library Request2Lis;
 //          }
 //      ]
 //  }
+//上述JSON所有字段必须存在
+//值必填的字段：医嘱唯一编号。【医嘱唯一编号】是向HIS返回检验结果的标识,且是程序中子项目插入同一张检验单的判断条件
 //JSON中日期时间格式：YYYY-MM-DD hh:nn:ss
-//上述JSON所有字段必须存在，其中必填值的字段：医嘱唯一编号、LIS检验组合项目代码
+//如果【LIS检验组合项目代码】的值在LIS中不存在，则只会导入病人基本信息，不会导入检验项目
 //
 //2023-02-17本程序已根据工作组、样本类型为依据进行拆单
 //是否还要根据子项目【联机字母】进行拆单？观察应用情况再定
@@ -274,8 +276,8 @@ begin
       adotemp22.Connection:=adoconn22;
       adotemp22.Close;
       adotemp22.SQL.Clear;
-      adotemp22.SQL.Text:='select cci.itemid from CombSChkItem csi,combinitem ci,clinicchkitem cci '+
-        ' where csi.CombUnid=ci.Unid and cci.unid=csi.ItemUnid and ci.Id='''+aSuperArrayMX[j]['LIS检验组合项目代码'].AsString+''' ';
+      adotemp22.SQL.Text:='select cci.itemid from CombSChkItem csci,combinitem ci,clinicchkitem cci '+
+        ' where csci.CombUnid=ci.Unid and cci.unid=csci.ItemUnid and ci.Id='''+aSuperArrayMX[j]['LIS检验组合项目代码'].AsString+''' ';
       Try
         adotemp22.Open;
       except
@@ -296,6 +298,10 @@ begin
       end;
       adotemp22.Free;
       adoconn22.Free;
+
+      //Data2Lis传入结果时也会调用，故此处先注释
+      //addOrEditCalcItem(pchar(LisConn),pchar(s2),checkunid);//增加计算项目
+      //addOrEditCalcValu(pchar(LisConn),checkunid,false,'');//更新计算项目
       //插入明细end
     end;
   end;
