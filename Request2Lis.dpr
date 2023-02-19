@@ -31,14 +31,14 @@ library Request2Lis;
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0087",
-//                      "LIS检验组合项目代码": "06",
+//                      "LIS组合项目代码": "06",
 //                      "优先级别": "常规",
 //                      "样本类型": "血清",
 //                      "样本状态": "正常"
 //                  },
 //                  {
 //                      "联机号": "X0013",
-//                      "LIS检验组合项目代码": "54",
+//                      "LIS组合项目代码": "54",
 //                      "优先级别": "常规",
 //                      "样本类型": "全血",
 //                      "样本状态": "正常"
@@ -57,14 +57,14 @@ library Request2Lis;
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0088",
-//                      "LIS检验组合项目代码": "06",
+//                      "LIS组合项目代码": "06",
 //                      "优先级别": "常规",
 //                      "样本类型": "血清",
 //                      "样本状态": "正常"
 //                  },
 //                  {
 //                      "联机号": "X0014",
-//                      "LIS检验组合项目代码": "54",
+//                      "LIS组合项目代码": "54",
 //                      "优先级别": "常规",
 //                      "样本类型": "全血",
 //                      "样本状态": "正常"
@@ -73,10 +73,10 @@ library Request2Lis;
 //          }
 //      ]
 //  }
-//上述JSON所有字段必须存在
-//值必填的字段：医嘱唯一编号。【医嘱唯一编号】是向HIS返回检验结果的标识,且是程序中子项目插入同一张检验单的判断条件
+//JSON必须存在的key：检验医嘱、医嘱唯一编号、医嘱明细
+//JSON值必填的字段：医嘱唯一编号。【医嘱唯一编号】是向HIS返回检验结果的标识,且是程序中子项目插入同一张检验单的判断条件
 //JSON中日期时间格式：YYYY-MM-DD hh:nn:ss
-//如果【LIS检验组合项目代码】的值在LIS中不存在，则只会导入病人基本信息，不会导入检验项目
+//如果【LIS组合项目代码】的值在LIS中不存在，则只会导入病人基本信息，不会导入检验项目
 //
 //2023-02-17本程序已根据工作组、样本类型为依据进行拆单
 //是否还要根据子项目【联机字母】进行拆单？观察应用情况再定
@@ -184,40 +184,65 @@ var
   fs:TFormatSettings;
   RequestDate:TDateTime;//申请日期
   ServerDateTime:TDateTime;
-  lsh:string;
+  lsh:string;//流水号
+  pkcombin_id:String;//LIS组合项目代码
+  RequestDateStr:String;//申请日期
+  checkid:String;//联机号
+  patientname:String;//患者姓名
+  sex:String;//患者性别
+  age:String;//患者年龄
+  Caseno:String;//病历号
+  deptname:String;//申请科室
+  check_doctor:String;//申请医生
 begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
 
   aJson:=SO(ARequestJSON);
+  if not aJson.AsObject.Exists('检验医嘱') then exit;
+  
   aSuperArray:=aJson['检验医嘱'].AsArray;
   for i:=0 to aSuperArray.Length-1 do
   begin
+    if not aSuperArray[i].AsObject.Exists('医嘱唯一编号') then continue;
+    if not aSuperArray[i].AsObject.Exists('医嘱明细') then continue;
+
     aSuperArrayMX:=aSuperArray[i]['医嘱明细'].AsArray;
     for j:=0 to aSuperArrayMX.Length-1 do
     begin
-      defaultWorkGroup:=ScalarSQLCmd(AAdoconnstr,'select dept_DfValue from combinitem where Id='''+aSuperArrayMX[j]['LIS检验组合项目代码'].AsString+''' ');
-      defaultSampleType:=ScalarSQLCmd(AAdoconnstr,'select specimentype_DfValue from combinitem where Id='''+aSuperArrayMX[j]['LIS检验组合项目代码'].AsString+''' ');
+      if aSuperArrayMX[j].AsObject.Exists('LIS组合项目代码') then pkcombin_id:=aSuperArrayMX[j]['LIS组合项目代码'].AsString else pkcombin_id:='不存在的组合项目代码';
+        
+      defaultWorkGroup:=ScalarSQLCmd(AAdoconnstr,'select dept_DfValue from combinitem where Id='''+pkcombin_id+''' ');
+      defaultSampleType:=ScalarSQLCmd(AAdoconnstr,'select specimentype_DfValue from combinitem where Id='''+pkcombin_id+''' ');
 
       //如果默认工作组为空,则导入当前工作组
       WorkGroup:=defaultWorkGroup;
       if WorkGroup='' then WorkGroup:=CurrentWorkGroup;
 
       //如果JSON中样本类型为空,则取默认样本类型
-      SampleType:=aSuperArrayMX[j]['样本类型'].AsString;
+      if aSuperArrayMX[j].AsObject.Exists('样本类型') then SampleType:=aSuperArrayMX[j]['样本类型'].AsString else SampleType:=''; 
       if SampleType='' then SampleType:=defaultSampleType;
 
-      YXJB:=aSuperArrayMX[j]['优先级别'].AsString;
+      if aSuperArrayMX[j].AsObject.Exists('优先级别') then YXJB:=aSuperArrayMX[j]['优先级别'].AsString else YXJB:=''; 
       if YXJB='' then YXJB:='常规';
 
-      SampleStatus:=aSuperArrayMX[j]['样本状态'].AsString;
+      if aSuperArrayMX[j].AsObject.Exists('样本状态') then SampleStatus:=aSuperArrayMX[j]['样本状态'].AsString else SampleStatus:=''; 
       if SampleStatus='' then SampleStatus:='正常';
 
       fs.DateSeparator:='-';
       fs.TimeSeparator:=':';
       fs.ShortDateFormat:='YYYY-MM-DD hh:nn:ss';
-      RequestDate:=StrtoDateTimeDef(aSuperArray[i]['申请日期'].AsString,ServerDateTime,fs);
+      if aSuperArray[i].AsObject.Exists('申请日期') then RequestDateStr:=aSuperArray[i]['申请日期'].AsString else RequestDateStr:='';
+      RequestDate:=StrtoDateTimeDef(RequestDateStr,ServerDateTime,fs);
       if  RequestDate<2 then ReplaceDate(RequestDate,ServerDateTime);//表示1899-12-30,没有给日期赋值
       if (HourOf(RequestDate)=0) and (MinuteOf(RequestDate)=0) and (SecondOf(RequestDate)=0) then ReplaceTime(RequestDate,ServerDateTime);//表示没有给时间赋值
+
+      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j]['联机号'].AsString else checkid:='';
+      if aSuperArray[i].AsObject.Exists('患者姓名') then patientname:=aSuperArray[i]['患者姓名'].AsString else patientname:='';
+      if aSuperArray[i].AsObject.Exists('患者性别') then sex:=aSuperArray[i]['患者性别'].AsString else sex:=''; 
+      if aSuperArray[i].AsObject.Exists('患者年龄') then age:=aSuperArray[i]['患者年龄'].AsString else age:='';
+      if aSuperArray[i].AsObject.Exists('病历号') then Caseno:=aSuperArray[i]['病历号'].AsString else Caseno:='';
+      if aSuperArray[i].AsObject.Exists('申请科室') then deptname:=aSuperArray[i]['申请科室'].AsString else deptname:='';
+      if aSuperArray[i].AsObject.Exists('申请医生') then check_doctor:=aSuperArray[i]['申请医生'].AsString else check_doctor:='';
 
       chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.His_Unid='''+aSuperArray[i]['医嘱唯一编号'].AsString+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
       if chk_con_unid='' then//存在工作组、医嘱唯一编号、样本类型相同,且未审核的检验单,则在此检验单上新增明细.否则就新增一条检验单
@@ -236,14 +261,14 @@ begin
         adotemp11.SQL.Add('                    (:combin_id,:checkid,:patientname,:sex,:age,:Caseno,:report_date,:deptname,:check_doctor,:His_Unid,:Diagnosetype,:flagetype,:typeflagcase,:LSH)');
         adotemp11.SQL.Add(' SELECT SCOPE_IDENTITY() AS Insert_Identity ');
         adotemp11.Parameters.ParamByName('combin_id').Value:=WorkGroup;
-        adotemp11.Parameters.ParamByName('checkid').Value:=aSuperArrayMX[j]['联机号'].AsString;
-        adotemp11.Parameters.ParamByName('patientname').Value:=aSuperArray[i]['患者姓名'].AsString;
-        adotemp11.Parameters.ParamByName('sex').Value:=aSuperArray[i]['患者性别'].AsString;
-        adotemp11.Parameters.ParamByName('age').Value:=aSuperArray[i]['患者年龄'].AsString;
-        adotemp11.Parameters.ParamByName('Caseno').Value:=aSuperArray[i]['病历号'].AsString;
+        adotemp11.Parameters.ParamByName('checkid').Value:=checkid;
+        adotemp11.Parameters.ParamByName('patientname').Value:=patientname;
+        adotemp11.Parameters.ParamByName('sex').Value:=sex;
+        adotemp11.Parameters.ParamByName('age').Value:=age;
+        adotemp11.Parameters.ParamByName('Caseno').Value:=Caseno;
         adotemp11.Parameters.ParamByName('report_date').Value:=RequestDate;
-        adotemp11.Parameters.ParamByName('deptname').Value:=aSuperArray[i]['申请科室'].AsString;
-        adotemp11.Parameters.ParamByName('check_doctor').Value:=aSuperArray[i]['申请医生'].AsString;
+        adotemp11.Parameters.ParamByName('deptname').Value:=deptname;
+        adotemp11.Parameters.ParamByName('check_doctor').Value:=check_doctor;
         adotemp11.Parameters.ParamByName('His_Unid').Value:=aSuperArray[i]['医嘱唯一编号'].AsString;
         adotemp11.Parameters.ParamByName('Diagnosetype').Value:=YXJB;
         adotemp11.Parameters.ParamByName('flagetype').Value:=SampleType;
@@ -266,7 +291,7 @@ begin
       end;
 
       //插入明细begin
-      ExecSQLCmd(AAdoconnstr,'update chk_valu set issure=1 where pkunid='+chk_con_unid+' and pkcombin_id='''+aSuperArrayMX[j]['LIS检验组合项目代码'].AsString+''' and isnull(issure,'''')<>''1'' ');
+      ExecSQLCmd(AAdoconnstr,'update chk_valu set issure=1 where pkunid='+chk_con_unid+' and pkcombin_id='''+pkcombin_id+''' and isnull(issure,'''')<>''1'' ');
 
       adoconn22:=Tadoconnection.Create(nil);
       adoconn22.ConnectionString:=strpas(AAdoconnstr);
@@ -277,7 +302,7 @@ begin
       adotemp22.Close;
       adotemp22.SQL.Clear;
       adotemp22.SQL.Text:='select cci.itemid from CombSChkItem csci,combinitem ci,clinicchkitem cci '+
-        ' where csci.CombUnid=ci.Unid and cci.unid=csci.ItemUnid and ci.Id='''+aSuperArrayMX[j]['LIS检验组合项目代码'].AsString+''' ';
+        ' where csci.CombUnid=ci.Unid and cci.unid=csci.ItemUnid and ci.Id='''+pkcombin_id+''' ';
       Try
         adotemp22.Open;
       except
@@ -291,8 +316,8 @@ begin
       end;
       while not adotemp22.Eof do
       begin
-        if '1'<>ScalarSQLCmd(AAdoconnstr,'select top 1 1 from chk_valu where pkunid='+chk_con_unid+' and pkcombin_id='''+aSuperArrayMX[j]['LIS检验组合项目代码'].AsString+''' and itemid='''+adotemp22.FieldByName('itemid').AsString+''' ') then
-          ExecSQLCmd(AAdoconnstr,'insert into chk_valu (pkunid,pkcombin_id,itemid,issure) values ('+chk_con_unid+','''+aSuperArrayMX[j]['LIS检验组合项目代码'].AsString+''','''+adotemp22.FieldByName('itemid').AsString+''',1)');
+        if '1'<>ScalarSQLCmd(AAdoconnstr,'select top 1 1 from chk_valu where pkunid='+chk_con_unid+' and pkcombin_id='''+aSuperArrayMX[j]['LIS组合项目代码'].AsString+''' and itemid='''+adotemp22.FieldByName('itemid').AsString+''' ') then
+          ExecSQLCmd(AAdoconnstr,'insert into chk_valu (pkunid,pkcombin_id,itemid,issure) values ('+chk_con_unid+','''+aSuperArrayMX[j]['LIS组合项目代码'].AsString+''','''+adotemp22.FieldByName('itemid').AsString+''',1)');
 
         adotemp22.Next;
       end;
