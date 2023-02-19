@@ -29,6 +29,17 @@ library Request2Lis;
 //              "申请日期": "2023-2-6",
 //              "申请科室": "内科",
 //              "申请医生": "华歆",
+//              "床号":"",
+//              "临床诊断":"",
+//              "备注":"",
+//              "所属公司":"",
+//              "所属部门":"",
+//              "工种":"",
+//              "工号":"",
+//              "婚否":"",
+//              "籍贯":"",
+//              "住址":"",
+//              "电话":"",
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0087",
@@ -55,6 +66,17 @@ library Request2Lis;
 //              "申请日期": "2023-2-7",
 //              "申请科室": "外科",
 //              "申请医生": "张飞",
+//              "床号":"",
+//              "临床诊断":"",
+//              "备注":"",
+//              "所属公司":"",
+//              "所属部门":"",
+//              "工种":"",
+//              "工号":"",
+//              "婚否":"",
+//              "籍贯":"",
+//              "住址":"",
+//              "电话":"",
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0088",
@@ -196,6 +218,17 @@ var
   Caseno:String;//病历号
   deptname:String;//申请科室
   check_doctor:String;//申请医生
+  bedno:String;//床号
+  diagnose:String;//临床诊断
+  issure:String;//备注
+  WorkCompany:String;//所属公司
+  WorkDepartment:String;//所属部门
+  WorkCategory:String;//工种
+  WorkID:String;//工号
+  ifMarry:String;//婚否
+  OldAddress:String;//籍贯
+  Address:String;//住址
+  Telephone:String;//电话
 begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
 
@@ -247,6 +280,17 @@ begin
       if aSuperArray[i].AsObject.Exists('病历号') then Caseno:=aSuperArray[i]['病历号'].AsString else Caseno:='';
       if aSuperArray[i].AsObject.Exists('申请科室') then deptname:=aSuperArray[i]['申请科室'].AsString else deptname:='';
       if aSuperArray[i].AsObject.Exists('申请医生') then check_doctor:=aSuperArray[i]['申请医生'].AsString else check_doctor:='';
+      if aSuperArray[i].AsObject.Exists('床号') then bedno:=aSuperArray[i]['床号'].AsString else bedno:='';
+      if aSuperArray[i].AsObject.Exists('临床诊断') then diagnose:=aSuperArray[i]['临床诊断'].AsString else diagnose:='';
+      if aSuperArray[i].AsObject.Exists('备注') then issure:=aSuperArray[i]['备注'].AsString else issure:='';
+      if aSuperArray[i].AsObject.Exists('所属公司') then WorkCompany:=aSuperArray[i]['所属公司'].AsString else WorkCompany:='';
+      if aSuperArray[i].AsObject.Exists('所属部门') then WorkDepartment:=aSuperArray[i]['所属部门'].AsString else WorkDepartment:='';
+      if aSuperArray[i].AsObject.Exists('工种') then WorkCategory:=aSuperArray[i]['工种'].AsString else WorkCategory:='';
+      if aSuperArray[i].AsObject.Exists('工号') then WorkID:=aSuperArray[i]['工号'].AsString else WorkID:='';
+      if aSuperArray[i].AsObject.Exists('婚否') then ifMarry:=aSuperArray[i]['婚否'].AsString else ifMarry:='';
+      if aSuperArray[i].AsObject.Exists('籍贯') then OldAddress:=aSuperArray[i]['籍贯'].AsString else OldAddress:='';
+      if aSuperArray[i].AsObject.Exists('住址') then Address:=aSuperArray[i]['住址'].AsString else Address:='';
+      if aSuperArray[i].AsObject.Exists('电话') then Telephone:=aSuperArray[i]['电话'].AsString else Telephone:='';
 
       if 'Excel'=aJson['JSON数据源'].AsString then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
         else chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.His_Unid='''+aSuperArray[i]['医嘱唯一编号'].AsString+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
@@ -263,8 +307,10 @@ begin
         adotemp11.Connection:=adoconn11;
         adotemp11.Close;
         adotemp11.SQL.Clear;
-        adotemp11.SQL.Add('insert into chk_con ( combin_id, checkid, patientname, sex, age, Caseno, report_date, deptname, check_doctor, His_Unid, Diagnosetype, flagetype, typeflagcase, LSH) values ');
-        adotemp11.SQL.Add('                    (:combin_id,:checkid,:patientname,:sex,:age,:Caseno,:report_date,:deptname,:check_doctor,:His_Unid,:Diagnosetype,:flagetype,:typeflagcase,:LSH)');
+        adotemp11.SQL.Add('insert into chk_con ( combin_id, checkid, patientname, sex, age, Caseno, report_date, deptname, check_doctor, His_Unid, Diagnosetype, flagetype, typeflagcase, LSH,');
+        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone) values ');
+        adotemp11.SQL.Add('                    (:combin_id,:checkid,:patientname,:sex,:age,:Caseno,:report_date,:deptname,:check_doctor,:His_Unid,:Diagnosetype,:flagetype,:typeflagcase,:LSH,');
+        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone)');
         adotemp11.SQL.Add(' SELECT SCOPE_IDENTITY() AS Insert_Identity ');
         adotemp11.Parameters.ParamByName('combin_id').Value:=WorkGroup;
         adotemp11.Parameters.ParamByName('checkid').Value:=checkid;
@@ -283,6 +329,17 @@ begin
         adotemp11.Parameters.ParamByName('flagetype').Value:=SampleType;
         adotemp11.Parameters.ParamByName('typeflagcase').Value:=SampleStatus;
         adotemp11.Parameters.ParamByName('LSH').Value:=lsh;
+        adotemp11.Parameters.ParamByName('bedno').Value:=bedno;
+        adotemp11.Parameters.ParamByName('diagnose').Value:=diagnose;
+        adotemp11.Parameters.ParamByName('issure').Value:=issure;
+        adotemp11.Parameters.ParamByName('WorkCompany').Value:=WorkCompany;
+        adotemp11.Parameters.ParamByName('WorkDepartment').Value:=WorkDepartment;
+        adotemp11.Parameters.ParamByName('WorkCategory').Value:=WorkCategory;
+        adotemp11.Parameters.ParamByName('WorkID').Value:=WorkID;
+        adotemp11.Parameters.ParamByName('ifMarry').Value:=ifMarry;
+        adotemp11.Parameters.ParamByName('OldAddress').Value:=OldAddress;
+        adotemp11.Parameters.ParamByName('Address').Value:=Address;
+        adotemp11.Parameters.ParamByName('Telephone').Value:=Telephone;
         Try
           adotemp11.Open;
         except
