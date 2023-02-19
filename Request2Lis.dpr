@@ -18,6 +18,7 @@ library Request2Lis;
 //CurrentWorkGroup:当前工作组.如组合项目未设置默认工作组,申请单将导入当前工作组
 //JSON实例:
 //  {
+//      "JSON数据源":"HIS",
 //      "检验医嘱": [
 //          {
 //              "医嘱唯一编号": "10000",
@@ -73,8 +74,9 @@ library Request2Lis;
 //          }
 //      ]
 //  }
-//JSON必须存在的key：检验医嘱、医嘱唯一编号、医嘱明细
-//JSON值必填的字段：医嘱唯一编号。【医嘱唯一编号】是向HIS返回检验结果的标识,且是程序中子项目插入同一张检验单的判断条件
+//JSON必须存在的key：JSON数据源、检验医嘱、医嘱唯一编号(特别的，如果JSON数据源的值为Excel，该key可以不存在)、医嘱明细
+//【JSON数据源】值必填：HIS、Excel
+//【医嘱唯一编号】值：当【JSON数据源】值为HIS时,【医嘱唯一编号】是向HIS返回检验结果的标识,且是程序中子项目插入同一张检验单的判断条件
 //JSON中日期时间格式：YYYY-MM-DD hh:nn:ss
 //如果【LIS组合项目代码】的值在LIS中不存在，则只会导入病人基本信息，不会导入检验项目
 //
@@ -198,12 +200,13 @@ begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
 
   aJson:=SO(ARequestJSON);
+  if not aJson.AsObject.Exists('JSON数据源') then exit;
   if not aJson.AsObject.Exists('检验医嘱') then exit;
   
   aSuperArray:=aJson['检验医嘱'].AsArray;
   for i:=0 to aSuperArray.Length-1 do
   begin
-    if not aSuperArray[i].AsObject.Exists('医嘱唯一编号') then continue;
+    if ('Excel'<>aJson['JSON数据源'].AsString)and(not aSuperArray[i].AsObject.Exists('医嘱唯一编号')) then continue;
     if not aSuperArray[i].AsObject.Exists('医嘱明细') then continue;
 
     aSuperArrayMX:=aSuperArray[i]['医嘱明细'].AsArray;
@@ -217,10 +220,11 @@ begin
       //如果默认工作组为空,则导入当前工作组
       WorkGroup:=defaultWorkGroup;
       if WorkGroup='' then WorkGroup:=CurrentWorkGroup;
+      if 'Excel'=aJson['JSON数据源'].AsString then WorkGroup:=CurrentWorkGroup;
 
       //如果JSON中样本类型为空,则取默认样本类型
       if aSuperArrayMX[j].AsObject.Exists('样本类型') then SampleType:=aSuperArrayMX[j]['样本类型'].AsString else SampleType:=''; 
-      if SampleType='' then SampleType:=defaultSampleType;
+      if (SampleType='')and('Excel'<>aJson['JSON数据源'].AsString) then SampleType:=defaultSampleType;
 
       if aSuperArrayMX[j].AsObject.Exists('优先级别') then YXJB:=aSuperArrayMX[j]['优先级别'].AsString else YXJB:=''; 
       if YXJB='' then YXJB:='常规';
@@ -244,7 +248,9 @@ begin
       if aSuperArray[i].AsObject.Exists('申请科室') then deptname:=aSuperArray[i]['申请科室'].AsString else deptname:='';
       if aSuperArray[i].AsObject.Exists('申请医生') then check_doctor:=aSuperArray[i]['申请医生'].AsString else check_doctor:='';
 
-      chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.His_Unid='''+aSuperArray[i]['医嘱唯一编号'].AsString+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
+      if 'Excel'=aJson['JSON数据源'].AsString then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
+        else chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.His_Unid='''+aSuperArray[i]['医嘱唯一编号'].AsString+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
+        
       if chk_con_unid='' then//存在工作组、医嘱唯一编号、样本类型相同,且未审核的检验单,则在此检验单上新增明细.否则就新增一条检验单
       begin
         lsh:=ScalarSQLCmd(AAdoconnstr,' select dbo.uf_GetNextSerialNum('''+WorkGroup+''','''+FormatDateTime('YYYY-MM-DD',ServerDateTime)+''','''+YXJB+''') ');
@@ -269,7 +275,10 @@ begin
         adotemp11.Parameters.ParamByName('report_date').Value:=RequestDate;
         adotemp11.Parameters.ParamByName('deptname').Value:=deptname;
         adotemp11.Parameters.ParamByName('check_doctor').Value:=check_doctor;
-        adotemp11.Parameters.ParamByName('His_Unid').Value:=aSuperArray[i]['医嘱唯一编号'].AsString;
+        if 'Excel'=aJson['JSON数据源'].AsString then
+          adotemp11.Parameters.ParamByName('His_Unid').Value:=''
+        else
+          adotemp11.Parameters.ParamByName('His_Unid').Value:=aSuperArray[i]['医嘱唯一编号'].AsString;
         adotemp11.Parameters.ParamByName('Diagnosetype').Value:=YXJB;
         adotemp11.Parameters.ParamByName('flagetype').Value:=SampleType;
         adotemp11.Parameters.ParamByName('typeflagcase').Value:=SampleStatus;
