@@ -99,8 +99,9 @@ library Request2Lis;
 //JSON必须存在的key：JSON数据源、检验医嘱、医嘱唯一编号(特别的，如果JSON数据源的值为Excel，该key可以不存在)、医嘱明细
 //【JSON数据源】值必填：HIS、Excel
 //【医嘱唯一编号】值：当【JSON数据源】值为HIS时,【医嘱唯一编号】是向HIS返回检验结果的标识,且是程序中子项目插入同一张检验单的判断条件
+//如果【LIS组合项目代码】的值在LIS中不存在，则仅会导入病人基本信息，不会导入检验项目
+//如果希望仅导入病人基本信息,则需要保证【医嘱明细】至少有一条记录,哪怕是一条无效数据的记录
 //JSON中日期时间格式：YYYY-MM-DD hh:nn:ss
-//如果【LIS组合项目代码】的值在LIS中不存在，则只会导入病人基本信息，不会导入检验项目
 //
 //2023-02-17本程序已根据工作组、样本类型为依据进行拆单
 //是否还要根据子项目【联机字母】进行拆单？观察应用情况再定
@@ -245,7 +246,8 @@ begin
     aSuperArrayMX:=aSuperArray[i]['医嘱明细'].AsArray;
     for j:=0 to aSuperArrayMX.Length-1 do
     begin
-      if aSuperArrayMX[j].AsObject.Exists('LIS组合项目代码') then pkcombin_id:=aSuperArrayMX[j]['LIS组合项目代码'].AsString else pkcombin_id:='不存在的组合项目代码';
+      if aSuperArrayMX[j].AsObject.Exists('LIS组合项目代码') then pkcombin_id:=aSuperArrayMX[j]['LIS组合项目代码'].AsString else pkcombin_id:=''; 
+      if pkcombin_id='' then pkcombin_id:='不存在的组合项目代码';
         
       defaultWorkGroup:=ScalarSQLCmd(AAdoconnstr,'select dept_DfValue from combinitem where Id='''+pkcombin_id+''' ');
       defaultSampleType:=ScalarSQLCmd(AAdoconnstr,'select specimentype_DfValue from combinitem where Id='''+pkcombin_id+''' ');
