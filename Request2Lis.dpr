@@ -234,7 +234,7 @@ begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
 
   aJson:=SO(ARequestJSON);
-  if not aJson.AsObject.Exists('JSON数据源') then exit;
+  if not aJson.AsObject.Exists('JSON数据源') then exit;//判断key是否存在的另一种写法:if aJson['JSON数据源']=nil then exit;
   if not aJson.AsObject.Exists('检验医嘱') then exit;
   
   aSuperArray:=aJson['检验医嘱'].AsArray;
