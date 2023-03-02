@@ -40,7 +40,7 @@ library Request2Lis;
 //              "籍贯":"",
 //              "住址":"",
 //              "电话":"",
-//              "体检号":"",
+//              "外部系统唯一编号":"",
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0087",
@@ -80,7 +80,7 @@ library Request2Lis;
 //              "籍贯":"",
 //              "住址":"",
 //              "电话":"",
-//              "体检号":"",
+//              "外部系统唯一编号":"",
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0088",
@@ -102,9 +102,10 @@ library Request2Lis;
 //          }
 //      ]
 //  }
-//JSON必须存在的key：JSON数据源、检验医嘱、申请单编号(特别的，如果JSON数据源的值为Excel，该key可以不存在)、医嘱明细
+//JSON必须存在的key：JSON数据源、检验医嘱、条码号(特别的，如果JSON数据源的值为Excel，该key可以不存在)、医嘱明细
 //【JSON数据源】值必填：HIS、Excel
-//【申请单编号】值：当【JSON数据源】值为HIS时,【申请单编号】是向HIS返回检验结果的标识,且是程序中子项目插入同一张检验单的判断条件
+//【条码号】：当【JSON数据源】值为HIS时,【条码号】是程序中子项目插入同一张检验单的判断条件
+//【外部系统唯一编号】: 当【JSON数据源】值为HIS时,HIS/PEIS等外部系统可用此编号关联受检者与检验结果.此编号有可能是体检号,也有可能是HIS表示此次看病的看病号
 //如果【LIS组合项目代码】的值在LIS中不存在，则仅会导入病人基本信息，不会导入检验项目
 //如果希望仅导入病人基本信息,则需要保证【医嘱明细】至少有一条记录,哪怕是一条无效数据的记录
 //JSON中日期时间格式：YYYY-MM-DD hh:nn:ss
@@ -211,7 +212,7 @@ var
   defaultSampleType:string;//默认样本类型
   WorkGroup:string;
   SampleType:string;
-  chk_con_unid:string;//申请单编号(HIS)
+  chk_con_unid:string;
   YXJB:STRING;//优先级别
   SampleStatus:string;//样本状态
   fs:TFormatSettings;
@@ -238,8 +239,8 @@ var
   OldAddress:String;//籍贯
   Address:String;//住址
   Telephone:String;//电话
-  DNH:String;//体检号(HIS)
-  TjJianYan:String;//条码号(HIS)
+  DNH:String;//申请单编号(HIS)
+  His_Unid:String;//外部系统唯一编号(HIS)
 begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
 
@@ -250,7 +251,7 @@ begin
   aSuperArray:=aJson['检验医嘱'].AsArray;
   for i:=0 to aSuperArray.Length-1 do
   begin
-    if ('Excel'<>aJson['JSON数据源'].AsString)and(not aSuperArray[i].AsObject.Exists('申请单编号')) then continue;
+    if ('Excel'<>aJson['JSON数据源'].AsString)and(not aSuperArray[i].AsObject.Exists('条码号')) then continue;
     if not aSuperArray[i].AsObject.Exists('医嘱明细') then continue;
 
     aSuperArrayMX:=aSuperArray[i]['医嘱明细'].AsArray;
@@ -303,13 +304,13 @@ begin
       if aSuperArray[i].AsObject.Exists('籍贯') then OldAddress:=aSuperArray[i]['籍贯'].AsString else OldAddress:='';
       if aSuperArray[i].AsObject.Exists('住址') then Address:=aSuperArray[i]['住址'].AsString else Address:='';
       if aSuperArray[i].AsObject.Exists('电话') then Telephone:=aSuperArray[i]['电话'].AsString else Telephone:='';
-      if aSuperArray[i].AsObject.Exists('体检号') then DNH:=aSuperArray[i]['体检号'].AsString else DNH:='';
-      if aSuperArrayMX[j].AsObject.Exists('条码号') then TjJianYan:=aSuperArrayMX[j]['条码号'].AsString else TjJianYan:=''; 
+      if aSuperArray[i].AsObject.Exists('外部系统唯一编号') then His_Unid:=aSuperArray[i]['外部系统唯一编号'].AsString else His_Unid:='';
+      if aSuperArray[i].AsObject.Exists('申请单编号') then DNH:=aSuperArray[i]['申请单编号'].AsString else DNH:='';
 
       if 'Excel'=aJson['JSON数据源'].AsString then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
-        else chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.His_Unid='''+aSuperArray[i]['申请单编号'].AsString+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
+        else chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.TjJianYan='''+aSuperArrayMX[j]['条码号'].AsString+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
         
-      if chk_con_unid='' then//存在工作组、申请单编号、样本类型相同,且未审核的检验单,则在此检验单上新增明细.否则就新增一条检验单
+      if chk_con_unid='' then//存在工作组、条码号、样本类型相同,且未审核的检验单,则在此检验单上新增明细.否则就新增一条检验单
       begin
         lsh:=ScalarSQLCmd(AAdoconnstr,' select dbo.uf_GetNextSerialNum('''+WorkGroup+''','''+FormatDateTime('YYYY-MM-DD',ServerDateTime)+''','''+YXJB+''') ');
 
@@ -335,10 +336,7 @@ begin
         adotemp11.Parameters.ParamByName('report_date').Value:=RequestDate;
         adotemp11.Parameters.ParamByName('deptname').Value:=deptname;
         adotemp11.Parameters.ParamByName('check_doctor').Value:=check_doctor;
-        if 'Excel'=aJson['JSON数据源'].AsString then
-          adotemp11.Parameters.ParamByName('His_Unid').Value:=''
-        else
-          adotemp11.Parameters.ParamByName('His_Unid').Value:=aSuperArray[i]['申请单编号'].AsString;
+        adotemp11.Parameters.ParamByName('His_Unid').Value:=His_Unid;
         adotemp11.Parameters.ParamByName('Diagnosetype').Value:=YXJB;
         adotemp11.Parameters.ParamByName('flagetype').Value:=SampleType;
         adotemp11.Parameters.ParamByName('typeflagcase').Value:=SampleStatus;
@@ -355,7 +353,10 @@ begin
         adotemp11.Parameters.ParamByName('Address').Value:=Address;
         adotemp11.Parameters.ParamByName('Telephone').Value:=Telephone;
         adotemp11.Parameters.ParamByName('DNH').Value:=DNH;
-        adotemp11.Parameters.ParamByName('TjJianYan').Value:=TjJianYan;
+        if 'Excel'=aJson['JSON数据源'].AsString then
+          adotemp11.Parameters.ParamByName('TjJianYan').Value:=''
+        else
+          adotemp11.Parameters.ParamByName('TjJianYan').Value:=aSuperArrayMX[j]['条码号'].AsString;
         Try
           adotemp11.Open;
         except
