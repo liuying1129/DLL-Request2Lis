@@ -258,7 +258,7 @@ begin
     begin
       if ('Excel'<>aJson.S['JSON数据源'])and(not aSuperArrayMX[j].AsObject.Exists('条码号')) then continue;
 
-      if aSuperArrayMX[j].AsObject.Exists('LIS组合项目代码') then pkcombin_id:=aSuperArrayMX[j]['LIS组合项目代码'].AsString else pkcombin_id:=''; 
+      if aSuperArrayMX[j].AsObject.Exists('LIS组合项目代码') then pkcombin_id:=aSuperArrayMX[j].S['LIS组合项目代码'] else pkcombin_id:=''; 
       if pkcombin_id='' then pkcombin_id:='不存在的组合项目代码';
         
       defaultWorkGroup:=ScalarSQLCmd(AAdoconnstr,'select dept_DfValue from combinitem where Id='''+pkcombin_id+''' ');
@@ -267,49 +267,49 @@ begin
       //如果默认工作组为空,则导入当前工作组
       WorkGroup:=defaultWorkGroup;
       if WorkGroup='' then WorkGroup:=CurrentWorkGroup;
-      if 'Excel'=aJson['JSON数据源'].AsString then WorkGroup:=CurrentWorkGroup;
+      if 'Excel'=aJson.S['JSON数据源'] then WorkGroup:=CurrentWorkGroup;
 
       //如果JSON中样本类型为空,则取默认样本类型
-      if aSuperArrayMX[j].AsObject.Exists('样本类型') then SampleType:=aSuperArrayMX[j]['样本类型'].AsString else SampleType:=''; 
-      if (SampleType='')and('Excel'<>aJson['JSON数据源'].AsString) then SampleType:=defaultSampleType;
+      if aSuperArrayMX[j].AsObject.Exists('样本类型') then SampleType:=aSuperArrayMX[j].S['样本类型'] else SampleType:=''; 
+      if (SampleType='')and('Excel'<>aJson.S['JSON数据源']) then SampleType:=defaultSampleType;
 
-      if aSuperArrayMX[j].AsObject.Exists('优先级别') then YXJB:=aSuperArrayMX[j]['优先级别'].AsString else YXJB:=''; 
+      if aSuperArrayMX[j].AsObject.Exists('优先级别') then YXJB:=aSuperArrayMX[j].S['优先级别'] else YXJB:=''; 
       if YXJB='' then YXJB:='常规';
 
-      if aSuperArrayMX[j].AsObject.Exists('样本状态') then SampleStatus:=aSuperArrayMX[j]['样本状态'].AsString else SampleStatus:=''; 
+      if aSuperArrayMX[j].AsObject.Exists('样本状态') then SampleStatus:=aSuperArrayMX[j].S['样本状态'] else SampleStatus:=''; 
       if SampleStatus='' then SampleStatus:='正常';
 
       fs.DateSeparator:='-';
       fs.TimeSeparator:=':';
       fs.ShortDateFormat:='YYYY-MM-DD hh:nn:ss';
-      if aSuperArray[i].AsObject.Exists('申请日期') then RequestDateStr:=aSuperArray[i]['申请日期'].AsString else RequestDateStr:='';
+      if aSuperArray[i].AsObject.Exists('申请日期') then RequestDateStr:=aSuperArray[i].S['申请日期'] else RequestDateStr:='';
       RequestDate:=StrtoDateTimeDef(RequestDateStr,ServerDateTime,fs);
       if  RequestDate<2 then ReplaceDate(RequestDate,ServerDateTime);//表示1899-12-30,没有给日期赋值
       if (HourOf(RequestDate)=0) and (MinuteOf(RequestDate)=0) and (SecondOf(RequestDate)=0) then ReplaceTime(RequestDate,ServerDateTime);//表示没有给时间赋值
 
-      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j]['联机号'].AsString else checkid:='';
-      if aSuperArray[i].AsObject.Exists('患者姓名') then patientname:=aSuperArray[i]['患者姓名'].AsString else patientname:='';
-      if aSuperArray[i].AsObject.Exists('患者性别') then sex:=aSuperArray[i]['患者性别'].AsString else sex:=''; 
-      if aSuperArray[i].AsObject.Exists('患者年龄') then age:=aSuperArray[i]['患者年龄'].AsString else age:='';
-      if aSuperArray[i].AsObject.Exists('病历号') then Caseno:=aSuperArray[i]['病历号'].AsString else Caseno:='';
-      if aSuperArray[i].AsObject.Exists('申请科室') then deptname:=aSuperArray[i]['申请科室'].AsString else deptname:='';
-      if aSuperArray[i].AsObject.Exists('申请医生') then check_doctor:=aSuperArray[i]['申请医生'].AsString else check_doctor:='';
-      if aSuperArray[i].AsObject.Exists('床号') then bedno:=aSuperArray[i]['床号'].AsString else bedno:='';
-      if aSuperArray[i].AsObject.Exists('临床诊断') then diagnose:=aSuperArray[i]['临床诊断'].AsString else diagnose:='';
-      if aSuperArray[i].AsObject.Exists('备注') then issure:=aSuperArray[i]['备注'].AsString else issure:='';
-      if aSuperArray[i].AsObject.Exists('所属公司') then WorkCompany:=aSuperArray[i]['所属公司'].AsString else WorkCompany:='';
-      if aSuperArray[i].AsObject.Exists('所属部门') then WorkDepartment:=aSuperArray[i]['所属部门'].AsString else WorkDepartment:='';
-      if aSuperArray[i].AsObject.Exists('工种') then WorkCategory:=aSuperArray[i]['工种'].AsString else WorkCategory:='';
-      if aSuperArray[i].AsObject.Exists('工号') then WorkID:=aSuperArray[i]['工号'].AsString else WorkID:='';
-      if aSuperArray[i].AsObject.Exists('婚否') then ifMarry:=aSuperArray[i]['婚否'].AsString else ifMarry:='';
-      if aSuperArray[i].AsObject.Exists('籍贯') then OldAddress:=aSuperArray[i]['籍贯'].AsString else OldAddress:='';
-      if aSuperArray[i].AsObject.Exists('住址') then Address:=aSuperArray[i]['住址'].AsString else Address:='';
-      if aSuperArray[i].AsObject.Exists('电话') then Telephone:=aSuperArray[i]['电话'].AsString else Telephone:='';
-      if aSuperArray[i].AsObject.Exists('外部系统唯一编号') then His_Unid:=aSuperArray[i]['外部系统唯一编号'].AsString else His_Unid:='';
-      if aSuperArray[i].AsObject.Exists('申请单编号') then DNH:=aSuperArray[i]['申请单编号'].AsString else DNH:='';
+      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j].S['联机号'] else checkid:='';
+      if aSuperArray[i].AsObject.Exists('患者姓名') then patientname:=aSuperArray[i].S['患者姓名'] else patientname:='';
+      if aSuperArray[i].AsObject.Exists('患者性别') then sex:=aSuperArray[i].S['患者性别'] else sex:=''; 
+      if aSuperArray[i].AsObject.Exists('患者年龄') then age:=aSuperArray[i].S['患者年龄'] else age:='';
+      if aSuperArray[i].AsObject.Exists('病历号') then Caseno:=aSuperArray[i].S['病历号'] else Caseno:='';
+      if aSuperArray[i].AsObject.Exists('申请科室') then deptname:=aSuperArray[i].S['申请科室'] else deptname:='';
+      if aSuperArray[i].AsObject.Exists('申请医生') then check_doctor:=aSuperArray[i].S['申请医生'] else check_doctor:='';
+      if aSuperArray[i].AsObject.Exists('床号') then bedno:=aSuperArray[i].S['床号'] else bedno:='';
+      if aSuperArray[i].AsObject.Exists('临床诊断') then diagnose:=aSuperArray[i].S['临床诊断'] else diagnose:='';
+      if aSuperArray[i].AsObject.Exists('备注') then issure:=aSuperArray[i].S['备注'] else issure:='';
+      if aSuperArray[i].AsObject.Exists('所属公司') then WorkCompany:=aSuperArray[i].S['所属公司'] else WorkCompany:='';
+      if aSuperArray[i].AsObject.Exists('所属部门') then WorkDepartment:=aSuperArray[i].S['所属部门'] else WorkDepartment:='';
+      if aSuperArray[i].AsObject.Exists('工种') then WorkCategory:=aSuperArray[i].S['工种'] else WorkCategory:='';
+      if aSuperArray[i].AsObject.Exists('工号') then WorkID:=aSuperArray[i].S['工号'] else WorkID:='';
+      if aSuperArray[i].AsObject.Exists('婚否') then ifMarry:=aSuperArray[i].S['婚否'] else ifMarry:='';
+      if aSuperArray[i].AsObject.Exists('籍贯') then OldAddress:=aSuperArray[i].S['籍贯'] else OldAddress:='';
+      if aSuperArray[i].AsObject.Exists('住址') then Address:=aSuperArray[i].S['住址'] else Address:='';
+      if aSuperArray[i].AsObject.Exists('电话') then Telephone:=aSuperArray[i].S['电话'] else Telephone:='';
+      if aSuperArray[i].AsObject.Exists('外部系统唯一编号') then His_Unid:=aSuperArray[i].S['外部系统唯一编号'] else His_Unid:='';
+      if aSuperArray[i].AsObject.Exists('申请单编号') then DNH:=aSuperArray[i].S['申请单编号'] else DNH:='';
 
-      if 'Excel'=aJson['JSON数据源'].AsString then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
-        else chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.TjJianYan='''+aSuperArrayMX[j]['条码号'].AsString+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
+      if 'Excel'=aJson.S['JSON数据源'] then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
+        else chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.TjJianYan='''+aSuperArrayMX[j].S['条码号']+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
         
       if chk_con_unid='' then//存在工作组、条码号、样本类型相同,且未审核的检验单,则在此检验单上新增明细.否则就新增一条检验单
       begin
@@ -357,7 +357,7 @@ begin
         if 'Excel'=aJson['JSON数据源'].AsString then
           adotemp11.Parameters.ParamByName('TjJianYan').Value:=''
         else
-          adotemp11.Parameters.ParamByName('TjJianYan').Value:=aSuperArrayMX[j]['条码号'].AsString;
+          adotemp11.Parameters.ParamByName('TjJianYan').Value:=aSuperArrayMX[j].S['条码号'];
         Try
           adotemp11.Open;
         except
@@ -400,8 +400,8 @@ begin
       end;
       while not adotemp22.Eof do
       begin
-        if '1'<>ScalarSQLCmd(AAdoconnstr,'select top 1 1 from chk_valu where pkunid='+chk_con_unid+' and pkcombin_id='''+aSuperArrayMX[j]['LIS组合项目代码'].AsString+''' and itemid='''+adotemp22.FieldByName('itemid').AsString+''' ') then
-          ExecSQLCmd(AAdoconnstr,'insert into chk_valu (pkunid,pkcombin_id,itemid,issure) values ('+chk_con_unid+','''+aSuperArrayMX[j]['LIS组合项目代码'].AsString+''','''+adotemp22.FieldByName('itemid').AsString+''',1)');
+        if '1'<>ScalarSQLCmd(AAdoconnstr,'select top 1 1 from chk_valu where pkunid='+chk_con_unid+' and pkcombin_id='''+aSuperArrayMX[j].S['LIS组合项目代码']+''' and itemid='''+adotemp22.FieldByName('itemid').AsString+''' ') then
+          ExecSQLCmd(AAdoconnstr,'insert into chk_valu (pkunid,pkcombin_id,itemid,issure) values ('+chk_con_unid+','''+aSuperArrayMX[j].S['LIS组合项目代码']+''','''+adotemp22.FieldByName('itemid').AsString+''',1)');
 
         adotemp22.Next;
       end;
