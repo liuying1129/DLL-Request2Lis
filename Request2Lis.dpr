@@ -251,12 +251,13 @@ begin
   aSuperArray:=aJson['检验医嘱'].AsArray;
   for i:=0 to aSuperArray.Length-1 do
   begin
-    if ('Excel'<>aJson['JSON数据源'].AsString)and(not aSuperArray[i].AsObject.Exists('条码号')) then continue;
     if not aSuperArray[i].AsObject.Exists('医嘱明细') then continue;
 
     aSuperArrayMX:=aSuperArray[i]['医嘱明细'].AsArray;
     for j:=0 to aSuperArrayMX.Length-1 do
     begin
+      if ('Excel'<>aJson.S['JSON数据源'])and(not aSuperArrayMX[j].AsObject.Exists('条码号')) then continue;
+
       if aSuperArrayMX[j].AsObject.Exists('LIS组合项目代码') then pkcombin_id:=aSuperArrayMX[j]['LIS组合项目代码'].AsString else pkcombin_id:=''; 
       if pkcombin_id='' then pkcombin_id:='不存在的组合项目代码';
         
