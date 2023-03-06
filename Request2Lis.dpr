@@ -11,7 +11,7 @@ library Request2Lis;
   using PChar or ShortString parameters. }
 
 //==============================================================================
-//该DLL提供函数，用于将JSON格式的检验申请信息导入LIS
+//该DLL提供方法RequestForm2Lis，用于将JSON格式的检验申请信息导入LIS
 //3个输入参数:
 //AAdoconnstr:LIS数据库的连接字符串
 //ARequestJSON:JSON格式的检验申请单信息
@@ -115,6 +115,84 @@ library Request2Lis;
 //
 //将JSON显示为脑图的网站:https://jsoncrack.com/editor
 //==============================================================================
+//该DLL提供函数GetLisCombItem，用于返回JSON格式的LIS组合项目信息
+//输入参数:
+//AAdoconnstr:LIS数据库的连接字符串
+//AHisItem:HIS组合项目列表,用逗号分隔
+//AEquipWord:仪器字母
+//AExtSystemId:外部系统ID
+//返回JSON格式如下
+//{
+//  "项目信息": [
+//    {
+//      "组合项目UNID": 123,
+//      "组合项目代码": "01",
+//      "组合项目名称": "",
+//      "组合项目备注": "",
+//      "组合项目默认工作组": "",
+//      "组合项目默认样本类型": "",
+//      "组合项目样本分隔符": ""
+//    },
+//    {
+//      "组合项目UNID": 124,
+//      "组合项目代码": "02",
+//      "组合项目名称": "",
+//      "组合项目备注": "",
+//      "组合项目默认工作组": "",
+//      "组合项目默认样本类型": "",
+//      "组合项目样本分隔符": ""
+//    }
+//  ]
+//}
+//==============================================================================
+//该DLL提供函数GetLisSubItem，用于返回JSON格式的LIS子项目信息
+//输入参数:
+//AAdoconnstr:LIS数据库的连接字符串
+//AHisItem:HIS组合项目列表,用逗号分隔
+//AEquipWord:仪器字母
+//AExtSystemId:外部系统ID
+//返回JSON格式如下
+//{
+//  "项目信息": [
+//        {
+//          "子项目UNID": 125,
+//          "子项目代码": "1011",
+//          "子项目名称": "",
+//          "子项目英文名": "",
+//          "子项目联机标识": "",
+//          "子项目保留字段1": "",
+//          "子项目保留字段2": "",
+//          "子项目保留字段3": "",
+//          "子项目保留字段4": "",
+//          "子项目保留字段5": "",
+//          "子项目保留字段6": "",
+//          "子项目保留字段7": "",
+//          "子项目保留字段8": "",
+//          "子项目保留字段9": "",
+//          "子项目保留字段10": "",
+//          "子项目推送联机标识": ""
+//        },
+//        {
+//          "子项目UNID": 126,
+//          "子项目代码": "1012",
+//          "子项目名称": "",
+//          "子项目英文名": "",
+//          "子项目联机标识": "",
+//          "子项目保留字段1": "",
+//          "子项目保留字段2": "",
+//          "子项目保留字段3": "",
+//          "子项目保留字段4": "",
+//          "子项目保留字段5": "",
+//          "子项目保留字段6": "",
+//          "子项目保留字段7": "",
+//          "子项目保留字段8": "",
+//          "子项目保留字段9": "",
+//          "子项目保留字段10": "",
+//          "子项目推送联机标识": ""
+//        }
+//  ]
+//}
+//==============================================================================
 
 uses
   SysUtils,
@@ -125,6 +203,8 @@ uses
   superobject in 'superobject.pas';
 
 {$R *.res}
+function UnicodeToChinese(const AUnicodeStr:PChar):PChar;stdcall;external 'LYFunction.dll';
+
 function GetServerDate(AConnectionString:string): TDateTime;
 var
   Conn:TADOConnection;
@@ -200,7 +280,6 @@ begin
   Conn.Free;
 end;
 
-//将医嘱JSON串导入LIS
 procedure RequestForm2Lis(const AAdoconnstr,ARequestJSON,CurrentWorkGroup:PChar);stdcall;
 var
   adoconn11,adoconn22:Tadoconnection;
@@ -416,8 +495,254 @@ begin
   end;
 end;
 
+function GetLisCombItem(const AAdoconnstr,AHisItem,AEquipWord,AExtSystemId:PChar):PChar;stdcall;
+var
+  adoconn:Tadoconnection;
+  adotemp22:Tadoquery;
+  ls:TStrings;
+  i,j:Integer;
+  
+  ObjectCombItem:ISuperObject;
+  ArrayCombItem:ISuperObject;
+
+  ResultObject:ISuperObject;
+
+  ifExistsKeyValue:boolean;
+begin
+  ResultObject:=SO;
+
+  ls:=TStringList.Create;
+  ExtractStrings([','],[],AHisItem,ls);
+
+  for i := 0 to ls.Count-1 do
+  begin
+    if trim(ls[i])='' then continue;
+    
+    adoconn:=Tadoconnection.Create(nil);
+    adoconn.ConnectionString:=Aadoconnstr;
+    adoconn.LoginPrompt:=false;
+
+    adotemp22:=Tadoquery.Create(nil);
+    adotemp22.Connection:=adoconn;
+    adotemp22.Close;
+    adotemp22.SQL.Clear;
+    adotemp22.SQL.Text:='select ci.Unid,ci.Id,ci.Name,ci.Remark,ci.dept_DfValue,ci.specimentype_DfValue,ci.itemtype '+
+                        'from combinitem ci,HisCombItem hci,CombSChkItem csci,clinicchkitem cci '+
+                        'where ci.Unid=hci.CombUnid and hci.ExtSystemId='''+AExtSystemId+
+                        ''' and hci.HisItem='''+ls[i]+
+                        ''' and csci.CombUnid=ci.Unid '+
+                        'and cci.unid=csci.ItemUnid '+ 
+                        'and cci.COMMWORD='''+AEquipWord+
+                        ''' group by ci.Unid,ci.Id,ci.Name,ci.Remark,ci.dept_DfValue,ci.specimentype_DfValue,ci.itemtype';
+    Try
+      adotemp22.Open;
+    except
+      on E:Exception do
+      begin
+        adotemp22.Free;
+        adoconn.Free;
+        
+        continue;
+      end;
+    end;
+
+    while not adotemp22.Eof do
+    begin
+      if not ResultObject.AsObject.Exists('项目信息') then
+      begin
+        ObjectCombItem:=SO;
+        ObjectCombItem.I['组合项目UNID'] := adotemp22.fieldbyname('Unid').AsInteger;
+        ObjectCombItem.S['组合项目代码'] := adotemp22.fieldbyname('Id').AsString;
+        ObjectCombItem.S['组合项目名称'] := adotemp22.fieldbyname('Name').AsString;
+        ObjectCombItem.S['组合项目备注'] := adotemp22.fieldbyname('Remark').AsString;
+        ObjectCombItem.S['组合项目默认工作组'] := adotemp22.fieldbyname('dept_DfValue').AsString;
+        ObjectCombItem.S['组合项目默认样本类型'] := adotemp22.fieldbyname('specimentype_DfValue').AsString;
+        ObjectCombItem.S['组合项目样本分隔符'] := adotemp22.fieldbyname('itemtype').AsString;
+
+        ArrayCombItem:=SA([]);
+        ArrayCombItem.AsArray.Add(ObjectCombItem);
+        ObjectCombItem:=nil;
+
+        ResultObject.O['项目信息']:=ArrayCombItem;
+        ArrayCombItem:=nil;
+
+        adotemp22.Next;
+        continue;
+      end;
+
+      ifExistsKeyValue:=false;
+      for j:=0 to ResultObject['项目信息'].AsArray.Length-1 do
+      begin
+        if ResultObject['项目信息'].AsArray[j].I['组合项目UNID']=adotemp22.fieldbyname('Unid').AsInteger then
+        begin
+          ifExistsKeyValue:=true;
+          break;
+        end;
+      end;
+
+      if ifExistsKeyValue then begin adotemp22.Next;continue;end;
+
+      ObjectCombItem:=SO;
+      ObjectCombItem.I['组合项目UNID'] := adotemp22.fieldbyname('Unid').AsInteger;
+      ObjectCombItem.S['组合项目代码'] := adotemp22.fieldbyname('Id').AsString;
+      ObjectCombItem.S['组合项目名称'] := adotemp22.fieldbyname('Name').AsString;
+      ObjectCombItem.S['组合项目备注'] := adotemp22.fieldbyname('Remark').AsString;
+      ObjectCombItem.S['组合项目默认工作组'] := adotemp22.fieldbyname('dept_DfValue').AsString;
+      ObjectCombItem.S['组合项目默认样本类型'] := adotemp22.fieldbyname('specimentype_DfValue').AsString;
+      ObjectCombItem.S['组合项目样本分隔符'] := adotemp22.fieldbyname('itemtype').AsString;
+
+      ResultObject.O['项目信息'].AsArray.Add(ObjectCombItem);
+      ObjectCombItem:=nil;
+
+      adotemp22.Next;
+    end;
+    
+    adotemp22.Free;
+    adoconn.Free;
+  end;
+
+  ls.Free;
+
+  Result:=UnicodeToChinese(PChar(AnsiString(ResultObject.AsJson)));
+
+  ResultObject:=nil;
+end;
+
+function GetLisSubItem(const AAdoconnstr,AHisItem,AEquipWord,AExtSystemId:PChar):PChar;stdcall;
+var
+  adoconn:Tadoconnection;
+  adotemp22:Tadoquery;
+  ls:TStrings;
+  i,j:Integer;
+  
+  ObjectSubItem:ISuperObject;
+  ArraySubItem:ISuperObject;
+
+  ResultObject:ISuperObject;
+
+  ifExistsKeyValue:boolean;
+begin
+  ResultObject:=SO;
+
+  ls:=TStringList.Create;
+  ExtractStrings([','],[],AHisItem,ls);
+
+  for i := 0 to ls.Count-1 do
+  begin
+    if trim(ls[i])='' then continue;
+    
+    adoconn:=Tadoconnection.Create(nil);
+    adoconn.ConnectionString:=Aadoconnstr;
+    adoconn.LoginPrompt:=false;
+
+    adotemp22:=Tadoquery.Create(nil);
+    adotemp22.Connection:=adoconn;
+    adotemp22.Close;
+    adotemp22.SQL.Clear;
+    adotemp22.SQL.Text:='select cci.unid,cci.itemid,cci.name,cci.english_name,cci.dlttype,cci.Reserve1,cci.Reserve2,cci.Dosage1,cci.Dosage2,cci.Reserve5,cci.Reserve6,cci.Reserve7,cci.Reserve8,cci.Reserve9,cci.Reserve10,cci.defaultvalue '+ 
+                        'from combinitem ci,HisCombItem hci,CombSChkItem csci,clinicchkitem cci '+
+                        'where ci.Unid=hci.CombUnid and hci.ExtSystemId='''+AExtSystemId+
+                        ''' and hci.HisItem='''+ls[i]+
+                        ''' and csci.CombUnid=ci.Unid '+
+                        'and cci.unid=csci.ItemUnid '+ 
+                        'and cci.COMMWORD='''+AEquipWord+
+                        ''' group by cci.unid,cci.itemid,cci.name,cci.english_name,cci.dlttype,cci.Reserve1,cci.Reserve2,cci.Dosage1,cci.Dosage2,cci.Reserve5,cci.Reserve6,cci.Reserve7,cci.Reserve8,cci.Reserve9,cci.Reserve10,cci.defaultvalue';
+    Try
+      adotemp22.Open;
+    except
+      on E:Exception do
+      begin
+        adotemp22.Free;
+        adoconn.Free;
+        
+        continue;
+      end;
+    end;
+
+    while not adotemp22.Eof do
+    begin
+      if not ResultObject.AsObject.Exists('项目信息') then
+      begin
+        ObjectSubItem:=SO;
+        ObjectSubItem.I['子项目UNID'] := adotemp22.fieldbyname('unid').AsInteger;
+        ObjectSubItem.S['子项目代码'] := adotemp22.fieldbyname('itemid').AsString;
+        ObjectSubItem.S['子项目名称'] := adotemp22.fieldbyname('name').AsString;
+        ObjectSubItem.S['子项目英文名'] := adotemp22.fieldbyname('english_name').AsString;
+        ObjectSubItem.S['子项目联机标识'] := adotemp22.fieldbyname('dlttype').AsString;
+        ObjectSubItem.S['子项目保留字段1'] := adotemp22.fieldbyname('Reserve1').AsString;
+        ObjectSubItem.S['子项目保留字段2'] := adotemp22.fieldbyname('Reserve2').AsString;
+        ObjectSubItem.S['子项目保留字段3'] := adotemp22.fieldbyname('Dosage1').AsString;
+        ObjectSubItem.S['子项目保留字段4'] := adotemp22.fieldbyname('Dosage2').AsString;
+        ObjectSubItem.S['子项目保留字段5'] := adotemp22.fieldbyname('Reserve5').AsString;
+        ObjectSubItem.S['子项目保留字段6'] := adotemp22.fieldbyname('Reserve6').AsString;
+        ObjectSubItem.S['子项目保留字段7'] := adotemp22.fieldbyname('Reserve7').AsString;
+        ObjectSubItem.S['子项目保留字段8'] := adotemp22.fieldbyname('Reserve8').AsString;
+        ObjectSubItem.S['子项目保留字段9'] := adotemp22.fieldbyname('Reserve9').AsString;
+        ObjectSubItem.S['子项目保留字段10'] := adotemp22.fieldbyname('Reserve10').AsString;
+        ObjectSubItem.S['子项目推送联机标识'] := adotemp22.fieldbyname('defaultvalue').AsString;
+
+        ArraySubItem:=SA([]);
+        ArraySubItem.AsArray.Add(ArraySubItem);
+        ObjectSubItem:=nil;
+
+        ResultObject.O['项目信息']:=ArraySubItem;
+        ArraySubItem:=nil;
+
+        adotemp22.Next;
+        continue;
+      end;
+
+      ifExistsKeyValue:=false;
+      for j:=0 to ResultObject['项目信息'].AsArray.Length-1 do
+      begin
+        if ResultObject['项目信息'].AsArray[j].I['组合项目UNID']=adotemp22.fieldbyname('Unid').AsInteger then
+        begin
+          ifExistsKeyValue:=true;
+          break;
+        end;
+      end;
+
+      if ifExistsKeyValue then begin adotemp22.Next;continue;end;
+
+      ObjectSubItem:=SO;
+      ObjectSubItem.I['子项目UNID'] := adotemp22.fieldbyname('unid').AsInteger;
+      ObjectSubItem.S['子项目代码'] := adotemp22.fieldbyname('itemid').AsString;
+      ObjectSubItem.S['子项目名称'] := adotemp22.fieldbyname('name').AsString;
+      ObjectSubItem.S['子项目英文名'] := adotemp22.fieldbyname('english_name').AsString;
+      ObjectSubItem.S['子项目联机标识'] := adotemp22.fieldbyname('dlttype').AsString;
+      ObjectSubItem.S['子项目保留字段1'] := adotemp22.fieldbyname('Reserve1').AsString;
+      ObjectSubItem.S['子项目保留字段2'] := adotemp22.fieldbyname('Reserve2').AsString;
+      ObjectSubItem.S['子项目保留字段3'] := adotemp22.fieldbyname('Dosage1').AsString;
+      ObjectSubItem.S['子项目保留字段4'] := adotemp22.fieldbyname('Dosage2').AsString;
+      ObjectSubItem.S['子项目保留字段5'] := adotemp22.fieldbyname('Reserve5').AsString;
+      ObjectSubItem.S['子项目保留字段6'] := adotemp22.fieldbyname('Reserve6').AsString;
+      ObjectSubItem.S['子项目保留字段7'] := adotemp22.fieldbyname('Reserve7').AsString;
+      ObjectSubItem.S['子项目保留字段8'] := adotemp22.fieldbyname('Reserve8').AsString;
+      ObjectSubItem.S['子项目保留字段9'] := adotemp22.fieldbyname('Reserve9').AsString;
+      ObjectSubItem.S['子项目保留字段10'] := adotemp22.fieldbyname('Reserve10').AsString;
+      ObjectSubItem.S['子项目推送联机标识'] := adotemp22.fieldbyname('defaultvalue').AsString;
+
+      ResultObject.O['项目信息'].AsArray.Add(ObjectSubItem);
+      ObjectSubItem:=nil;
+
+      adotemp22.Next;
+    end;
+    
+    adotemp22.Free;
+    adoconn.Free;
+  end;
+
+  ls.Free;
+
+  Result:=UnicodeToChinese(PChar(AnsiString(ResultObject.AsJson)));
+
+  ResultObject:=nil;
+end;
+
 exports
-  RequestForm2Lis;
+  RequestForm2Lis,
+  GetLisCombItem,
+  GetLisSubItem;
 
 begin
 end.
