@@ -45,7 +45,7 @@ library Request2Lis;
 //                      "联机号": "S0087",
 //                      "LIS组合项目代码": "06",
 //                      "条码号": "12345",
-//                      "申请单编号": "10000",
+//                      "外部系统项目申请编号": "10000",
 //                      "优先级别": "常规",
 //                      "样本类型": "血清",
 //                      "样本状态": "正常"
@@ -54,7 +54,7 @@ library Request2Lis;
 //                      "联机号": "X0013",
 //                      "LIS组合项目代码": "54",
 //                      "条码号": "12346",
-//                      "申请单编号": "10001",
+//                      "外部系统项目申请编号": "10001",
 //                      "优先级别": "常规",
 //                      "样本类型": "全血",
 //                      "样本状态": "正常"
@@ -86,7 +86,7 @@ library Request2Lis;
 //                      "联机号": "S0088",
 //                      "LIS组合项目代码": "06",
 //                      "条码号": "12347",
-//                      "申请单编号": "10002",
+//                      "外部系统项目申请编号": "10002",
 //                      "优先级别": "常规",
 //                      "样本类型": "血清",
 //                      "样本状态": "正常"
@@ -95,7 +95,7 @@ library Request2Lis;
 //                      "联机号": "X0014",
 //                      "LIS组合项目代码": "54",
 //                      "条码号": "12348",
-//                      "申请单编号": "10003",
+//                      "外部系统项目申请编号": "10003",
 //                      "优先级别": "常规",
 //                      "样本类型": "全血",
 //                      "样本状态": "正常"
@@ -108,10 +108,10 @@ library Request2Lis;
 //【JSON数据源】值必填：HIS、Excel
 //【条码号】：当【JSON数据源】值为HIS时,【条码号】是程序中子项目插入同一张检验单的判断条件
 //【外部系统唯一编号】: 当【JSON数据源】值为HIS时,HIS/PEIS等外部系统可用此编号关联受检者与检验结果.此编号有可能是体检号,也有可能是HIS表示此次看病的看病号
+//【外部系统项目申请编号】:当【JSON数据源】值为HIS时,每开一个组合项目,生成的一个唯一号.某些外部系统(如莱域PEIS)用此号码匹配检验结果
 //如果【LIS组合项目代码】的值在LIS中不存在，则仅会导入病人基本信息，不会导入检验项目
 //如果希望仅导入病人基本信息,则需要保证【医嘱明细】至少有一条记录,哪怕是一条无效数据的记录
 //JSON中日期时间格式：YYYY-MM-DD hh:nn:ss
-//【申请单编号】:每开一个组合项目,生成的一个唯一号码,有些HIS(如莱域PEIS)用此号码匹配组合项目下的子项目
 //
 //2023-02-17本程序已根据工作组、样本类型为依据进行拆单
 //是否还要根据子项目【联机字母】进行拆单？观察应用情况再定
@@ -321,7 +321,7 @@ var
   OldAddress:String;//籍贯
   Address:String;//住址
   Telephone:String;//电话
-  Surem1:String;//申请单编号(HIS)
+  Surem1:String;//外部系统项目申请编号(HIS)
   His_Unid:String;//外部系统唯一编号(HIS)
 begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
@@ -387,7 +387,7 @@ begin
       if aSuperArray[i].AsObject.Exists('住址') then Address:=aSuperArray[i].S['住址'] else Address:='';
       if aSuperArray[i].AsObject.Exists('电话') then Telephone:=aSuperArray[i].S['电话'] else Telephone:='';
       if aSuperArray[i].AsObject.Exists('外部系统唯一编号') then His_Unid:=aSuperArray[i].S['外部系统唯一编号'] else His_Unid:='';
-      if aSuperArrayMX[j].AsObject.Exists('申请单编号') then Surem1:=aSuperArrayMX[j].S['申请单编号'] else Surem1:='';
+      if aSuperArrayMX[j].AsObject.Exists('外部系统项目申请编号') then Surem1:=aSuperArrayMX[j].S['外部系统项目申请编号'] else Surem1:='';
       if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j].S['联机号'] else checkid:='';
 
       if 'Excel'=aJson.S['JSON数据源'] then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
