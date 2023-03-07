@@ -21,7 +21,6 @@ library Request2Lis;
 //      "JSON数据源":"HIS",
 //      "检验医嘱": [
 //          {
-//              "申请单编号": "10000",
 //              "病历号": "101234",
 //              "患者姓名": "曹操",
 //              "患者性别": "男",
@@ -46,6 +45,7 @@ library Request2Lis;
 //                      "联机号": "S0087",
 //                      "LIS组合项目代码": "06",
 //                      "条码号": "12345",
+//                      "申请单编号": "10000",
 //                      "优先级别": "常规",
 //                      "样本类型": "血清",
 //                      "样本状态": "正常"
@@ -54,6 +54,7 @@ library Request2Lis;
 //                      "联机号": "X0013",
 //                      "LIS组合项目代码": "54",
 //                      "条码号": "12346",
+//                      "申请单编号": "10001",
 //                      "优先级别": "常规",
 //                      "样本类型": "全血",
 //                      "样本状态": "正常"
@@ -61,7 +62,6 @@ library Request2Lis;
 //              ]
 //          },
 //          {
-//              "申请单编号": "10001",
 //              "病历号": "101221",
 //              "患者姓名": "关羽",
 //              "患者性别": "男",
@@ -86,6 +86,7 @@ library Request2Lis;
 //                      "联机号": "S0088",
 //                      "LIS组合项目代码": "06",
 //                      "条码号": "12347",
+//                      "申请单编号": "10002",
 //                      "优先级别": "常规",
 //                      "样本类型": "血清",
 //                      "样本状态": "正常"
@@ -94,6 +95,7 @@ library Request2Lis;
 //                      "联机号": "X0014",
 //                      "LIS组合项目代码": "54",
 //                      "条码号": "12348",
+//                      "申请单编号": "10003",
 //                      "优先级别": "常规",
 //                      "样本类型": "全血",
 //                      "样本状态": "正常"
@@ -109,6 +111,7 @@ library Request2Lis;
 //如果【LIS组合项目代码】的值在LIS中不存在，则仅会导入病人基本信息，不会导入检验项目
 //如果希望仅导入病人基本信息,则需要保证【医嘱明细】至少有一条记录,哪怕是一条无效数据的记录
 //JSON中日期时间格式：YYYY-MM-DD hh:nn:ss
+//【申请单编号】:每开一个组合项目,生成的一个唯一号码,有些HIS(如莱域PEIS)用此号码匹配组合项目下的子项目
 //
 //2023-02-17本程序已根据工作组、样本类型为依据进行拆单
 //是否还要根据子项目【联机字母】进行拆单？观察应用情况再定
@@ -318,7 +321,7 @@ var
   OldAddress:String;//籍贯
   Address:String;//住址
   Telephone:String;//电话
-  DNH:String;//申请单编号(HIS)
+  Surem1:String;//申请单编号(HIS)
   His_Unid:String;//外部系统唯一编号(HIS)
 begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
@@ -366,7 +369,6 @@ begin
       if  RequestDate<2 then ReplaceDate(RequestDate,ServerDateTime);//表示1899-12-30,没有给日期赋值
       if (HourOf(RequestDate)=0) and (MinuteOf(RequestDate)=0) and (SecondOf(RequestDate)=0) then ReplaceTime(RequestDate,ServerDateTime);//表示没有给时间赋值
 
-      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j].S['联机号'] else checkid:='';
       if aSuperArray[i].AsObject.Exists('患者姓名') then patientname:=aSuperArray[i].S['患者姓名'] else patientname:='';
       if aSuperArray[i].AsObject.Exists('患者性别') then sex:=aSuperArray[i].S['患者性别'] else sex:=''; 
       if aSuperArray[i].AsObject.Exists('患者年龄') then age:=aSuperArray[i].S['患者年龄'] else age:='';
@@ -385,7 +387,8 @@ begin
       if aSuperArray[i].AsObject.Exists('住址') then Address:=aSuperArray[i].S['住址'] else Address:='';
       if aSuperArray[i].AsObject.Exists('电话') then Telephone:=aSuperArray[i].S['电话'] else Telephone:='';
       if aSuperArray[i].AsObject.Exists('外部系统唯一编号') then His_Unid:=aSuperArray[i].S['外部系统唯一编号'] else His_Unid:='';
-      if aSuperArray[i].AsObject.Exists('申请单编号') then DNH:=aSuperArray[i].S['申请单编号'] else DNH:='';
+      if aSuperArrayMX[j].AsObject.Exists('申请单编号') then Surem1:=aSuperArrayMX[j].S['申请单编号'] else Surem1:='';
+      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j].S['联机号'] else checkid:='';
 
       if 'Excel'=aJson.S['JSON数据源'] then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
         else chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.TjJianYan='''+aSuperArrayMX[j].S['条码号']+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
@@ -403,9 +406,9 @@ begin
         adotemp11.Close;
         adotemp11.SQL.Clear;
         adotemp11.SQL.Add('insert into chk_con ( combin_id, checkid, patientname, sex, age, Caseno, report_date, deptname, check_doctor, His_Unid, Diagnosetype, flagetype, typeflagcase, LSH,');
-        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone, DNH, TjJianYan) values ');
+        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone, TjJianYan) values ');
         adotemp11.SQL.Add('                    (:combin_id,:checkid,:patientname,:sex,:age,:Caseno,:report_date,:deptname,:check_doctor,:His_Unid,:Diagnosetype,:flagetype,:typeflagcase,:LSH,');
-        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone,:DNH,:TjJianYan)');
+        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone,:TjJianYan)');
         adotemp11.SQL.Add(' SELECT SCOPE_IDENTITY() AS Insert_Identity ');
         adotemp11.Parameters.ParamByName('combin_id').Value:=WorkGroup;
         adotemp11.Parameters.ParamByName('checkid').Value:=checkid;
@@ -432,7 +435,7 @@ begin
         adotemp11.Parameters.ParamByName('OldAddress').Value:=OldAddress;
         adotemp11.Parameters.ParamByName('Address').Value:=Address;
         adotemp11.Parameters.ParamByName('Telephone').Value:=Telephone;
-        adotemp11.Parameters.ParamByName('DNH').Value:=DNH;
+        //adotemp11.Parameters.ParamByName('DNH').Value:=DNH;
         if 'Excel'=aJson['JSON数据源'].AsString then
           adotemp11.Parameters.ParamByName('TjJianYan').Value:=''
         else
@@ -480,7 +483,7 @@ begin
       while not adotemp22.Eof do
       begin
         if '1'<>ScalarSQLCmd(AAdoconnstr,'select top 1 1 from chk_valu where pkunid='+chk_con_unid+' and pkcombin_id='''+aSuperArrayMX[j].S['LIS组合项目代码']+''' and itemid='''+adotemp22.FieldByName('itemid').AsString+''' ') then
-          ExecSQLCmd(AAdoconnstr,'insert into chk_valu (pkunid,pkcombin_id,itemid,issure) values ('+chk_con_unid+','''+aSuperArrayMX[j].S['LIS组合项目代码']+''','''+adotemp22.FieldByName('itemid').AsString+''',1)');
+          ExecSQLCmd(AAdoconnstr,'insert into chk_valu (pkunid,pkcombin_id,itemid,Surem1,issure) values ('+chk_con_unid+','''+aSuperArrayMX[j].S['LIS组合项目代码']+''','''+adotemp22.FieldByName('itemid').AsString+''','''+Surem1+''',1)');
 
         adotemp22.Next;
       end;
