@@ -203,7 +203,8 @@ uses
   ADODB,
   DateUtils,
   Dialogs,
-  superobject in 'superobject.pas';
+  superobject in 'superobject.pas',
+  PerlRegEx;
 
 {$R *.res}
 function UnicodeToChinese(const AUnicodeStr:PChar):PChar;stdcall;external 'LYFunction.dll';
@@ -323,6 +324,8 @@ var
   Telephone:String;//电话
   Surem1:String;//外部系统项目申请编号(HIS)
   His_Unid:String;//外部系统唯一编号(HIS)
+  
+  RegEx:TPerlRegEx;
 begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
 
@@ -369,6 +372,13 @@ begin
       if  RequestDate<2 then ReplaceDate(RequestDate,ServerDateTime);//表示1899-12-30,没有给日期赋值
       if (HourOf(RequestDate)=0) and (MinuteOf(RequestDate)=0) and (SecondOf(RequestDate)=0) then ReplaceTime(RequestDate,ServerDateTime);//表示没有给时间赋值
 
+      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j].S['联机号'] else checkid:='';
+      RegEx := TPerlRegEx.Create;
+      RegEx.Subject := checkid;
+      RegEx.RegEx   := '[a-zA-Z]+[0-9]+';
+      if not RegEx.Match then checkid:='';//字母和数字均存在的联机号才有意义.屏蔽不符合规范的联机号,是为了立即反馈给操作员
+      FreeAndNil(RegEx);
+
       if aSuperArray[i].AsObject.Exists('患者姓名') then patientname:=aSuperArray[i].S['患者姓名'] else patientname:='';
       if aSuperArray[i].AsObject.Exists('患者性别') then sex:=aSuperArray[i].S['患者性别'] else sex:=''; 
       if aSuperArray[i].AsObject.Exists('患者年龄') then age:=aSuperArray[i].S['患者年龄'] else age:='';
@@ -388,7 +398,6 @@ begin
       if aSuperArray[i].AsObject.Exists('电话') then Telephone:=aSuperArray[i].S['电话'] else Telephone:='';
       if aSuperArray[i].AsObject.Exists('外部系统唯一编号') then His_Unid:=aSuperArray[i].S['外部系统唯一编号'] else His_Unid:='';
       if aSuperArrayMX[j].AsObject.Exists('外部系统项目申请编号') then Surem1:=aSuperArrayMX[j].S['外部系统项目申请编号'] else Surem1:='';
-      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j].S['联机号'] else checkid:='';
 
       if 'Excel'=aJson.S['JSON数据源'] then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
         else chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con cc where cc.combin_id='''+WorkGroup+''' and cc.TjJianYan='''+aSuperArrayMX[j].S['条码号']+''' and cc.flagetype='''+SampleType+''' and isnull(report_doctor,'''')='''' ');
