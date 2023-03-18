@@ -372,7 +372,7 @@ begin
       if  RequestDate<2 then ReplaceDate(RequestDate,ServerDateTime);//表示1899-12-30,没有给日期赋值
       if (HourOf(RequestDate)=0) and (MinuteOf(RequestDate)=0) and (SecondOf(RequestDate)=0) then ReplaceTime(RequestDate,ServerDateTime);//表示没有给时间赋值
 
-      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=aSuperArrayMX[j].S['联机号'] else checkid:='';
+      if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=UpperCase(Trim(aSuperArrayMX[j].S['联机号'])) else checkid:='';
       RegEx := TPerlRegEx.Create;
       RegEx.Subject := checkid;
       RegEx.RegEx   := '[a-zA-Z]+[0-9]+';
