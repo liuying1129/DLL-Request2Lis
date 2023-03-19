@@ -375,8 +375,8 @@ begin
       if aSuperArrayMX[j].AsObject.Exists('联机号') then checkid:=UpperCase(Trim(aSuperArrayMX[j].S['联机号'])) else checkid:='';
       RegEx := TPerlRegEx.Create;
       RegEx.Subject := checkid;
-      RegEx.RegEx   := '[a-zA-Z]+[0-9]+';
-      if not RegEx.Match then checkid:='';//字母和数字均存在的联机号才有意义.屏蔽不符合规范的联机号,是为了立即反馈给操作员
+      RegEx.RegEx   := '[a-zA-Z]+[0-9]+';//至少1个字母后紧跟至少1个数字
+      if not RegEx.Match then checkid:='';//屏蔽不符合规范的联机号,是为了立即反馈给操作员
       FreeAndNil(RegEx);
 
       if aSuperArray[i].AsObject.Exists('患者姓名') then patientname:=aSuperArray[i].S['患者姓名'] else patientname:='';
