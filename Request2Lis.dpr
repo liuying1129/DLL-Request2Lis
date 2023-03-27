@@ -40,6 +40,7 @@ library Request2Lis;
 //              "住址":"",
 //              "电话":"",
 //              "外部系统唯一编号":"",
+//              "患者类别": "门诊或住院等",
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0087",
@@ -81,6 +82,7 @@ library Request2Lis;
 //              "住址":"",
 //              "电话":"",
 //              "外部系统唯一编号":"",
+//              "患者类别": "门诊或住院等",
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0088",
@@ -324,6 +326,7 @@ var
   Telephone:String;//电话
   Surem1:String;//外部系统项目申请编号(HIS)
   His_Unid:String;//外部系统唯一编号(HIS)
+  His_MzOrZy:String;//患者类别
   
   RegEx:TPerlRegEx;
 begin
@@ -397,6 +400,7 @@ begin
       if aSuperArray[i].AsObject.Exists('住址') then Address:=aSuperArray[i].S['住址'] else Address:='';
       if aSuperArray[i].AsObject.Exists('电话') then Telephone:=aSuperArray[i].S['电话'] else Telephone:='';
       if aSuperArray[i].AsObject.Exists('外部系统唯一编号') then His_Unid:=aSuperArray[i].S['外部系统唯一编号'] else His_Unid:='';
+      if aSuperArray[i].AsObject.Exists('患者类别') then His_MzOrZy:=aSuperArray[i].S['患者类别'] else His_MzOrZy:=''; 
       if aSuperArrayMX[j].AsObject.Exists('外部系统项目申请编号') then Surem1:=aSuperArrayMX[j].S['外部系统项目申请编号'] else Surem1:='';
 
       if 'Excel'=aJson.S['JSON数据源'] then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
@@ -415,9 +419,9 @@ begin
         adotemp11.Close;
         adotemp11.SQL.Clear;
         adotemp11.SQL.Add('insert into chk_con ( combin_id, checkid, patientname, sex, age, Caseno, report_date, deptname, check_doctor, His_Unid, Diagnosetype, flagetype, typeflagcase, LSH,');
-        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone, TjJianYan) values ');
+        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone, TjJianYan, His_MzOrZy) values ');
         adotemp11.SQL.Add('                    (:combin_id,:checkid,:patientname,:sex,:age,:Caseno,:report_date,:deptname,:check_doctor,:His_Unid,:Diagnosetype,:flagetype,:typeflagcase,:LSH,');
-        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone,:TjJianYan)');
+        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone,:TjJianYan,:His_MzOrZy)');
         adotemp11.SQL.Add(' SELECT SCOPE_IDENTITY() AS Insert_Identity ');
         adotemp11.Parameters.ParamByName('combin_id').Value:=WorkGroup;
         adotemp11.Parameters.ParamByName('checkid').Value:=checkid;
@@ -449,6 +453,7 @@ begin
           adotemp11.Parameters.ParamByName('TjJianYan').Value:=''
         else
           adotemp11.Parameters.ParamByName('TjJianYan').Value:=aSuperArrayMX[j].S['条码号'];
+        adotemp11.Parameters.ParamByName('His_MzOrZy').Value:=His_MzOrZy;
         Try
           adotemp11.Open;
         except
