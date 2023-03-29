@@ -326,7 +326,7 @@ var
   Telephone:String;//电话
   Surem1:String;//外部系统项目申请编号(HIS)
   His_Unid:String;//外部系统唯一编号(HIS)
-  His_MzOrZy:String;//患者类别
+  His_MzOrZy:String;//患者类别(HIS).如门诊、住院等
   
   RegEx:TPerlRegEx;
 begin
