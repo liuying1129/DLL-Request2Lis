@@ -427,9 +427,9 @@ begin
         adotemp11.Close;
         adotemp11.SQL.Clear;
         adotemp11.SQL.Add('insert into chk_con ( combin_id, checkid, patientname, sex, age, Caseno, report_date, deptname, check_doctor, His_Unid, Diagnosetype, flagetype, typeflagcase, LSH,');
-        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone, TjJianYan, His_MzOrZy, PushPress, PullPress, Stature) values ');
+        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone, TjJianYan, His_MzOrZy, PushPress, PullPress, Stature, operator) values ');
         adotemp11.SQL.Add('                    (:combin_id,:checkid,:patientname,:sex,:age,:Caseno,:report_date,:deptname,:check_doctor,:His_Unid,:Diagnosetype,:flagetype,:typeflagcase,:LSH,');
-        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone,:TjJianYan,:His_MzOrZy,:PushPress,:PullPress,:Stature)');
+        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone,:TjJianYan,:His_MzOrZy,:PushPress,:PullPress,:Stature,:operator)');
         adotemp11.SQL.Add(' SELECT SCOPE_IDENTITY() AS Insert_Identity ');
         adotemp11.Parameters.ParamByName('combin_id').Value:=WorkGroup;
         adotemp11.Parameters.ParamByName('checkid').Value:=checkid;
@@ -465,6 +465,7 @@ begin
         adotemp11.Parameters.ParamByName('PushPress').Value:=PushPress;//样本送交人
         adotemp11.Parameters.ParamByName('PullPress').Value:=PullPress;//样本接收人
         adotemp11.Parameters.ParamByName('Stature').Value:=Now;//样本接收时间
+        adotemp11.Parameters.ParamByName('operator').Value:=PullPress;//检验单的操作者,避免通过条码扫描的检验单没有操作者.如真实的操作者在LIS中对检验单进行了保存操作,就会用真实的操作者覆盖该操作者
         Try
           adotemp11.Open;
         except
