@@ -10,11 +10,99 @@ library Request2Lis;
   with your DLL. To avoid using BORLNDMM.DLL, pass string information
   using PChar or ShortString parameters. }
 
+uses
+  SysUtils,
+  Classes,
+  ADODB,
+  DateUtils,
+  Dialogs,
+  superobject in 'superobject.pas',
+  PerlRegEx;
+
+{$R *.res}
+
+//将JSON显示为脑图的网站:https://jsoncrack.com/editor
+
+function GetServerDate(AConnectionString:string): TDateTime;
+var
+  Conn:TADOConnection;
+  adotempDate:tadoquery;
+begin
+  Conn:=TADOConnection.Create(nil);
+  Conn.LoginPrompt:=false;
+  Conn.ConnectionString:=AConnectionString;
+  adotempDate:=tadoquery.Create(NIL);
+  ADOTEMPDATE.Connection:=Conn;
+  ADOTEMPDATE.Close;
+  ADOTEMPDATE.SQL.Clear;
+  ADOTEMPDATE.SQL.Text:='SELECT GETDATE() as ServerDate ';
+  ADOTEMPDATE.Open;
+  result:=ADOTEMPDATE.fieldbyname('ServerDate').AsDateTime;
+  ADOTEMPDATE.Free;
+  Conn.Free;
+end;
+
+function ExecSQLCmd(AConnectionString:string;ASQL:string):integer;
+var
+  Conn:TADOConnection;
+  Qry:TAdoQuery;
+begin
+  Conn:=TADOConnection.Create(nil);
+  Conn.LoginPrompt:=false;
+  Conn.ConnectionString:=AConnectionString;
+  Qry:=TAdoQuery.Create(nil);
+  Qry.Connection:=Conn;
+  Qry.Close;
+  Qry.SQL.Clear;
+  Qry.SQL.Text:=ASQL;
+  Try
+    Result:=Qry.ExecSQL;
+  except
+    on E:Exception do
+    begin
+      MessageDlg('函数ExecSQLCmd失败:'+E.Message+'。错误的SQL:'+ASQL,mtError,[MBOK],0);
+      Result:=-1;
+    end;
+  end;
+  Qry.Free;
+  Conn.Free;
+end;
+
+function ScalarSQLCmd(AConnectionString:string;ASQL:string):string;
+var
+  Conn:TADOConnection;
+  Qry:TAdoQuery;
+begin
+  Result:='';
+  Conn:=TADOConnection.Create(nil);
+  Conn.LoginPrompt:=false;
+  Conn.ConnectionString:=AConnectionString;
+  Qry:=TAdoQuery.Create(nil);
+  Qry.Connection:=Conn;
+  Qry.Close;
+  Qry.SQL.Clear;
+  Qry.SQL.Text:=ASQL;
+  Try
+    Qry.Open;
+  except
+    on E:Exception do
+    begin
+      MessageDlg('函数ScalarSQLCmd失败:'+E.Message+'。错误的SQL:'+ASQL,mtError,[MBOK],0);
+      Qry.Free;
+      Conn.Free;
+      exit;
+    end;
+  end;
+  Result:=Qry.Fields[0].AsString;
+  Qry.Free;
+  Conn.Free;
+end;
+
 //==============================================================================
 //该DLL提供方法RequestForm2Lis，用于将JSON格式的检验申请信息导入LIS
 //3个输入参数:
 //AAdoconnstr:LIS数据库的连接字符串
-//ARequestJSON:JSON格式的检验申请单信息
+//ARequestJSON:JSON格式的检验申请单信息.无论JSON是否转义,SuperObject都能得到正确的值
 //CurrentWorkGroup:当前工作组.如组合项目未设置默认工作组,申请单将导入当前工作组
 //JSON实例:
 //  {
@@ -121,175 +209,7 @@ library Request2Lis;
 //
 //2023-02-17本程序已根据工作组、样本类型为依据进行拆单
 //是否还要根据子项目【联机字母】进行拆单？观察应用情况再定
-//
-//将JSON显示为脑图的网站:https://jsoncrack.com/editor
 //==============================================================================
-//该DLL提供函数GetLisCombItem，用于返回JSON格式的LIS组合项目信息
-//输入参数:
-//AAdoconnstr:LIS数据库的连接字符串
-//AHisItem:HIS组合项目列表,用逗号分隔
-//AEquipWord:仪器字母
-//AExtSystemId:外部系统ID
-//返回JSON格式如下
-//{
-//  "项目信息": [
-//    {
-//      "组合项目UNID": 123,
-//      "组合项目代码": "01",
-//      "组合项目名称": "",
-//      "组合项目备注": "",
-//      "组合项目默认工作组": "",
-//      "组合项目默认样本类型": "",
-//      "组合项目样本分隔符": ""
-//    },
-//    {
-//      "组合项目UNID": 124,
-//      "组合项目代码": "02",
-//      "组合项目名称": "",
-//      "组合项目备注": "",
-//      "组合项目默认工作组": "",
-//      "组合项目默认样本类型": "",
-//      "组合项目样本分隔符": ""
-//    }
-//  ]
-//}
-//==============================================================================
-//该DLL提供函数GetLisSubItem，用于返回JSON格式的LIS子项目信息
-//输入参数:
-//AAdoconnstr:LIS数据库的连接字符串
-//AHisItem:HIS组合项目列表,用逗号分隔
-//AEquipWord:仪器字母
-//AExtSystemId:外部系统ID
-//返回JSON格式如下
-//{
-//  "项目信息": [
-//        {
-//          "子项目UNID": 125,
-//          "子项目代码": "1011",
-//          "子项目名称": "",
-//          "子项目英文名": "",
-//          "子项目联机标识": "",
-//          "子项目保留字段1": "",
-//          "子项目保留字段2": "",
-//          "子项目保留字段3": "",
-//          "子项目保留字段4": "",
-//          "子项目保留字段5": "",
-//          "子项目保留字段6": "",
-//          "子项目保留字段7": "",
-//          "子项目保留字段8": "",
-//          "子项目保留字段9": "",
-//          "子项目保留字段10": "",
-//          "子项目推送联机标识": ""
-//        },
-//        {
-//          "子项目UNID": 126,
-//          "子项目代码": "1012",
-//          "子项目名称": "",
-//          "子项目英文名": "",
-//          "子项目联机标识": "",
-//          "子项目保留字段1": "",
-//          "子项目保留字段2": "",
-//          "子项目保留字段3": "",
-//          "子项目保留字段4": "",
-//          "子项目保留字段5": "",
-//          "子项目保留字段6": "",
-//          "子项目保留字段7": "",
-//          "子项目保留字段8": "",
-//          "子项目保留字段9": "",
-//          "子项目保留字段10": "",
-//          "子项目推送联机标识": ""
-//        }
-//  ]
-//}
-//==============================================================================
-
-uses
-  SysUtils,
-  Classes,
-  ADODB,
-  DateUtils,
-  Dialogs,
-  superobject in 'superobject.pas',
-  PerlRegEx;
-
-{$R *.res}
-function UnicodeToChinese(const AUnicodeStr:PChar):PChar;stdcall;external 'LYFunction.dll';
-
-function GetServerDate(AConnectionString:string): TDateTime;
-var
-  Conn:TADOConnection;
-  adotempDate:tadoquery;
-begin
-  Conn:=TADOConnection.Create(nil);
-  Conn.LoginPrompt:=false;
-  Conn.ConnectionString:=AConnectionString;
-  adotempDate:=tadoquery.Create(NIL);
-  ADOTEMPDATE.Connection:=Conn;
-  ADOTEMPDATE.Close;
-  ADOTEMPDATE.SQL.Clear;
-  ADOTEMPDATE.SQL.Text:='SELECT GETDATE() as ServerDate ';
-  ADOTEMPDATE.Open;
-  result:=ADOTEMPDATE.fieldbyname('ServerDate').AsDateTime;
-  ADOTEMPDATE.Free;
-  Conn.Free;
-end;
-
-function ExecSQLCmd(AConnectionString:string;ASQL:string):integer;
-var
-  Conn:TADOConnection;
-  Qry:TAdoQuery;
-begin
-  Conn:=TADOConnection.Create(nil);
-  Conn.LoginPrompt:=false;
-  Conn.ConnectionString:=AConnectionString;
-  Qry:=TAdoQuery.Create(nil);
-  Qry.Connection:=Conn;
-  Qry.Close;
-  Qry.SQL.Clear;
-  Qry.SQL.Text:=ASQL;
-  Try
-    Result:=Qry.ExecSQL;
-  except
-    on E:Exception do
-    begin
-      MessageDlg('函数ExecSQLCmd失败:'+E.Message+'。错误的SQL:'+ASQL,mtError,[MBOK],0);
-      Result:=-1;
-    end;
-  end;
-  Qry.Free;
-  Conn.Free;
-end;
-
-function ScalarSQLCmd(AConnectionString:string;ASQL:string):string;
-var
-  Conn:TADOConnection;
-  Qry:TAdoQuery;
-begin
-  Result:='';
-  Conn:=TADOConnection.Create(nil);
-  Conn.LoginPrompt:=false;
-  Conn.ConnectionString:=AConnectionString;
-  Qry:=TAdoQuery.Create(nil);
-  Qry.Connection:=Conn;
-  Qry.Close;
-  Qry.SQL.Clear;
-  Qry.SQL.Text:=ASQL;
-  Try
-    Qry.Open;
-  except
-    on E:Exception do
-    begin
-      MessageDlg('函数ScalarSQLCmd失败:'+E.Message+'。错误的SQL:'+ASQL,mtError,[MBOK],0);
-      Qry.Free;
-      Conn.Free;
-      exit;
-    end;
-  end;
-  Result:=Qry.Fields[0].AsString;
-  Qry.Free;
-  Conn.Free;
-end;
-
 procedure RequestForm2Lis(const AAdoconnstr,ARequestJSON,CurrentWorkGroup:PChar);stdcall;
 var
   adoconn11,adoconn22:Tadoconnection;
@@ -339,8 +259,8 @@ begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
 
   aJson:=SO(ARequestJSON);
-  if not aJson.AsObject.Exists('JSON数据源') then exit;//判断key是否存在的另一种写法:if aJson['JSON数据源']=nil then exit;
-  if not aJson.AsObject.Exists('检验医嘱') then exit;
+  if not aJson.AsObject.Exists('JSON数据源') then begin aJson:=nil;exit;end;//判断key是否存在的另一种写法:if aJson['JSON数据源']=nil then exit;
+  if not aJson.AsObject.Exists('检验医嘱') then begin aJson:=nil;exit;end;
   
   aSuperArray:=aJson['检验医嘱'].AsArray;
   for i:=0 to aSuperArray.Length-1 do
@@ -355,8 +275,8 @@ begin
       if aSuperArrayMX[j].AsObject.Exists('LIS组合项目代码') then pkcombin_id:=aSuperArrayMX[j].S['LIS组合项目代码'] else pkcombin_id:=''; 
       if pkcombin_id='' then pkcombin_id:='不存在的组合项目代码';
         
-      defaultWorkGroup:=ScalarSQLCmd(AAdoconnstr,'select dept_DfValue from combinitem where Id='''+pkcombin_id+''' ');
-      defaultSampleType:=ScalarSQLCmd(AAdoconnstr,'select specimentype_DfValue from combinitem where Id='''+pkcombin_id+''' ');
+      defaultWorkGroup:=ScalarSQLCmd(AAdoconnstr,'select TOP 1 dept_DfValue from combinitem where Id='''+pkcombin_id+''' ');
+      defaultSampleType:=ScalarSQLCmd(AAdoconnstr,'select TOP 1 specimentype_DfValue from combinitem where Id='''+pkcombin_id+''' ');
 
       //如果默认工作组为空,则导入当前工作组
       WorkGroup:=defaultWorkGroup;
@@ -474,6 +394,7 @@ begin
             MessageDlg('插入病人信息失败:'+E.Message,mtError,[MBOK],0);
             adotemp11.Free;
             adoconn11.Free;
+            aJson:=nil;
             exit;
           end;
         end;
@@ -503,6 +424,7 @@ begin
           MessageDlg('获取指定组合项目的子项目失败:'+E.Message,mtError,[MBOK],0);
           adotemp22.Free;
           adoconn22.Free;
+          aJson:=nil;
           exit;
         end;
       end;
@@ -522,9 +444,41 @@ begin
       //插入明细end
     end;
   end;
+  aJson:=nil;
 end;
 
-function GetLisCombItem(const AAdoconnstr,AHisItem,AEquipWord,AExtSystemId:PChar):PChar;stdcall;
+//==============================================================================
+//该DLL提供函数GetLisCombItem，用于返回JSON格式的LIS组合项目信息
+//输入参数:
+//AAdoconnstr:LIS数据库的连接字符串
+//AHisItem:HIS组合项目列表,用逗号分隔
+//AEquipWord:仪器字母
+//AExtSystemId:外部系统ID
+//返回JSON格式如下
+//{
+//  "项目信息": [
+//    {
+//      "组合项目UNID": 123,
+//      "组合项目代码": "01",
+//      "组合项目名称": "",
+//      "组合项目备注": "",
+//      "组合项目默认工作组": "",
+//      "组合项目默认样本类型": "",
+//      "组合项目样本分隔符": ""
+//    },
+//    {
+//      "组合项目UNID": 124,
+//      "组合项目代码": "02",
+//      "组合项目名称": "",
+//      "组合项目备注": "",
+//      "组合项目默认工作组": "",
+//      "组合项目默认样本类型": "",
+//      "组合项目样本分隔符": ""
+//    }
+//  ]
+//}
+//==============================================================================
+{function GetLisCombItem(const AAdoconnstr,AHisItem,AEquipWord,AExtSystemId:PChar):PChar;stdcall;
 var
   adoconn:Tadoconnection;
   adotemp22:Tadoquery;
@@ -635,9 +589,58 @@ begin
   Result:=UnicodeToChinese(PChar(AnsiString(ResultObject.AsJson)));
 
   ResultObject:=nil;
-end;
+end;//}
 
-function GetLisSubItem(const AAdoconnstr,AHisItem,AEquipWord,AExtSystemId:PChar):PChar;stdcall;
+//==============================================================================
+//该DLL提供函数GetLisSubItem，用于返回JSON格式的LIS子项目信息
+//输入参数:
+//AAdoconnstr:LIS数据库的连接字符串
+//AHisItem:HIS组合项目列表,用逗号分隔
+//AEquipWord:仪器字母
+//AExtSystemId:外部系统ID
+//返回JSON格式如下
+//{
+//  "项目信息": [
+//        {
+//          "子项目UNID": 125,
+//          "子项目代码": "1011",
+//          "子项目名称": "",
+//          "子项目英文名": "",
+//          "子项目联机标识": "",
+//          "子项目保留字段1": "",
+//          "子项目保留字段2": "",
+//          "子项目保留字段3": "",
+//          "子项目保留字段4": "",
+//          "子项目保留字段5": "",
+//          "子项目保留字段6": "",
+//          "子项目保留字段7": "",
+//          "子项目保留字段8": "",
+//          "子项目保留字段9": "",
+//          "子项目保留字段10": "",
+//          "子项目推送联机标识": ""
+//        },
+//        {
+//          "子项目UNID": 126,
+//          "子项目代码": "1012",
+//          "子项目名称": "",
+//          "子项目英文名": "",
+//          "子项目联机标识": "",
+//          "子项目保留字段1": "",
+//          "子项目保留字段2": "",
+//          "子项目保留字段3": "",
+//          "子项目保留字段4": "",
+//          "子项目保留字段5": "",
+//          "子项目保留字段6": "",
+//          "子项目保留字段7": "",
+//          "子项目保留字段8": "",
+//          "子项目保留字段9": "",
+//          "子项目保留字段10": "",
+//          "子项目推送联机标识": ""
+//        }
+//  ]
+//}
+//==============================================================================
+{function GetLisSubItem(const AAdoconnstr,AHisItem,AEquipWord,AExtSystemId:PChar):PChar;stdcall;
 var
   adoconn:Tadoconnection;
   adotemp22:Tadoquery;
@@ -766,12 +769,12 @@ begin
   Result:=UnicodeToChinese(PChar(AnsiString(ResultObject.AsJson)));
 
   ResultObject:=nil;
-end;
+end;//}
 
 exports
-  RequestForm2Lis,
-  GetLisCombItem,
-  GetLisSubItem;
+  RequestForm2Lis;
+  //GetLisCombItem,
+  //GetLisSubItem;
 
 begin
 end.
