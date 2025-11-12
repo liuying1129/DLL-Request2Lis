@@ -131,6 +131,8 @@ end;
 //              "患者类别": "门诊或住院等",
 //              "样本送交人": "",
 //              "样本接收人": "",
+//              "证件类型": "如身份证、护照或01、02等",
+//              "证件号码": "",
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0087",
@@ -175,6 +177,8 @@ end;
 //              "患者类别": "门诊或住院等",
 //              "样本送交人": "",
 //              "样本接收人": "",
+//              "证件类型": "如身份证、护照或01、02等",
+//              "证件号码": "",
 //              "医嘱明细": [
 //                  {
 //                      "联机号": "S0088",
@@ -253,7 +257,9 @@ var
   His_MzOrZy:String;//患者类别(HIS).如门诊、住院等
   PushPress:String;//样本送交人
   PullPress:String;//样本接收人
-  
+  TjNeiKe:string;//证件号码（如身份证号码）
+  TjWaiKe:string;//证件类型（如身份证、护照或01、02等）
+
   RegEx:TPerlRegEx;
 begin
   ServerDateTime:=GetServerDate(AAdoconnstr);
@@ -329,6 +335,8 @@ begin
       if aSuperArray[i].AsObject.Exists('患者类别') then His_MzOrZy:=aSuperArray[i].S['患者类别'] else His_MzOrZy:='';
       if aSuperArray[i].AsObject.Exists('样本送交人') then PushPress:=aSuperArray[i].S['样本送交人'] else PushPress:='';
       if aSuperArray[i].AsObject.Exists('样本接收人') then PullPress:=aSuperArray[i].S['样本接收人'] else PullPress:='';
+      if aSuperArray[i].AsObject.Exists('证件类型') then TjWaiKe:=aSuperArray[i].S['证件类型'] else TjWaiKe:='';
+      if aSuperArray[i].AsObject.Exists('证件号码') then TjNeiKe:=aSuperArray[i].S['证件号码'] else TjNeiKe:='';
       if aSuperArrayMX[j].AsObject.Exists('外部系统项目申请编号') then Surem1:=aSuperArrayMX[j].S['外部系统项目申请编号'] else Surem1:='';
 
       if 'Excel'=aJson.S['JSON数据源'] then chk_con_unid:=ScalarSQLCmd(AAdoconnstr,'select top 1 unid from chk_con where patientname='''+patientname+''' AND sex='''+sex+''' AND age='''+age+''' AND combin_id='''+WorkGroup+''' and isnull(report_doctor,'''')='''' ')
@@ -347,9 +355,9 @@ begin
         adotemp11.Close;
         adotemp11.SQL.Clear;
         adotemp11.SQL.Add('insert into chk_con ( combin_id, checkid, patientname, sex, age, Caseno, report_date, deptname, check_doctor, His_Unid, Diagnosetype, flagetype, typeflagcase, LSH,');
-        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone, TjJianYan, His_MzOrZy, PushPress, PullPress, Stature, operator) values ');
+        adotemp11.SQL.Add(' bedno, diagnose, issure, WorkCompany, WorkDepartment, WorkCategory, WorkID, ifMarry, OldAddress, Address, Telephone, TjJianYan, His_MzOrZy, PushPress, PullPress, Stature, operator, TjNeiKe, TjWaiKe) values ');
         adotemp11.SQL.Add('                    (:combin_id,:checkid,:patientname,:sex,:age,:Caseno,:report_date,:deptname,:check_doctor,:His_Unid,:Diagnosetype,:flagetype,:typeflagcase,:LSH,');
-        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone,:TjJianYan,:His_MzOrZy,:PushPress,:PullPress,:Stature,:operator)');
+        adotemp11.SQL.Add(':bedno,:diagnose,:issure,:WorkCompany,:WorkDepartment,:WorkCategory,:WorkID,:ifMarry,:OldAddress,:Address,:Telephone,:TjJianYan,:His_MzOrZy,:PushPress,:PullPress,:Stature,:operator,:TjNeiKe,:TjWaiKe)');
         adotemp11.SQL.Add(' SELECT SCOPE_IDENTITY() AS Insert_Identity ');
         adotemp11.Parameters.ParamByName('combin_id').Value:=WorkGroup;
         adotemp11.Parameters.ParamByName('checkid').Value:=checkid;
@@ -386,6 +394,8 @@ begin
         adotemp11.Parameters.ParamByName('PullPress').Value:=PullPress;//样本接收人
         adotemp11.Parameters.ParamByName('Stature').Value:=Now;//样本接收时间
         adotemp11.Parameters.ParamByName('operator').Value:=PullPress;//检验单的操作者,避免通过条码扫描的检验单没有操作者.如真实的操作者在LIS中对检验单进行了保存操作,就会用真实的操作者覆盖该操作者
+        adotemp11.Parameters.ParamByName('TjNeiKe').Value:=TjNeiKe;//证件号码
+        adotemp11.Parameters.ParamByName('TjWaiKe').Value:=TjWaiKe;//证件类型
         Try
           adotemp11.Open;
         except
